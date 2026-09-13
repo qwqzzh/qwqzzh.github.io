@@ -25,7 +25,7 @@
     <section class="hero">
       <div class="hero-copy">
         <p class="eyebrow">Images of the Russian Empire · Fall 2026</p>
-        <h1>Color from<br>three moments<br>in time.</h1>
+        <h1>Colouring the<br>Prokudin-Gorskii<br>Photo Collection.</h1>
         <p class="dek">Reconstructing Prokudin-Gorskii’s glass-plate photographs with exhaustive alignment, a coarse-to-fine pyramid, and two targeted improvements for difficult color channels and damaged borders.</p>
         <div class="hero-stats" aria-label="Project summary">
           <div><strong>17</strong><span>plates aligned</span></div>
@@ -40,9 +40,9 @@
     </section>
 
     <section class="light-section intro" id="method">
-      <div class="section-label"><span>PART 1</span><p>Problem setup · from a glass plate to RGB</p></div>
+      <div class="section-label"><span>PART 1</span><p>Setup</p></div>
       <div class="split-lead">
-        <h2>One plate.<br>Three exposures.<br>One color image.</h2>
+        <h2>From three monochrome exposures<br>to one color image.</h2>
         <div>
           <p>Prokudin-Gorskii recorded the same scene three times through blue, green, and red filters. The digitized plate stores those grayscale exposures vertically in B–G–R order. Because the plate or camera moved slightly between exposures, directly stacking the three arrays produces colored ghosts. The task is to estimate one 2D translation for green and one for red, both relative to blue, then form an RGB image.</p>
           <p>The reported displacement is <strong>(dy, dx)</strong>: positive dy moves a channel downward and positive dx moves it to the right. Once the two translations are estimated, only the region supported by all three channels is retained.</p>
@@ -69,9 +69,9 @@ R = plate[2h:3h]</code></pre>
     </section>
 
     <section class="dark-section">
-      <div class="section-label"><span>PART 2</span><p>Single-scale exhaustive alignment</p></div>
+      <div class="section-label"><span>PART 2</span><p>Start small, search everything</p></div>
       <div class="split-lead compact">
-        <h2>Start small,<br>search everything.</h2>
+        <h2>Single-scale<br>exhaustive alignment.</h2>
         <div>
           <p>For each moving channel M and fixed blue reference B, I enumerate every integer translation d = (dy, dx) in [−15, 15]². The best displacement maximizes a similarity score S on the interior image content:</p>
           <p class="formula">d* = arg max<sub>d∈[−15,15]²</sub> S(B, shift(M,d))</p>
@@ -94,7 +94,7 @@ for dy in -15 … 15:
     </section>
 
     <section class="dark-section pyramid-section">
-      <div class="section-label"><span>PART 3</span><p>Coarse-to-fine image pyramid</p></div>
+      <div class="section-label"><span>PART 3</span><p>Large motion, without a large search</p></div>
       <div class="pyramid-grid">
         <div class="pyramid-diagram" aria-label="Coarse-to-fine pyramid">
           <div style="width:34%">COARSE · SEARCH ±15</div>
@@ -104,7 +104,7 @@ for dy in -15 … 15:
           <div style="width:100%">FULL RESOLUTION</div>
         </div>
         <div>
-          <h2>Large motion,<br>without a large search.</h2>
+          <h2>Coarse-to-fine<br>image pyramid.</h2>
           <p>A 31×31 search at full TIFF resolution repeatedly scores millions of pixels. Instead, I build a pyramid by averaging each 2×2 block before decimating by two. Filtering before downsampling reduces aliasing. Pyramid construction stops when the longest side is at most 400 pixels.</p>
           <p>The coarsest image uses the full ±15 search. Moving one level finer doubles the displacement estimate because a coarse pixel covers two fine pixels; only a ±2 residual correction is then searched. If d<sub>ℓ+1</sub> is the coarser estimate, the next estimate is:</p>
           <p class="formula">d<sub>ℓ</sub> = 2d<sub>ℓ+1</sub> + arg max<sub>δ∈[−2,2]²</sub> S(B<sub>ℓ</sub>, shift(M<sub>ℓ</sub>, 2d<sub>ℓ+1</sub>+δ))</p>
@@ -124,7 +124,7 @@ for each finer level:
     <section class="paper-section metrics">
       <div class="section-label"><span>PART 4</span><p>Similarity metrics · NCC and Euclidean L2</p></div>
       <div class="split-lead compact">
-        <h2>NCC and true<br>Euclidean L2.</h2>
+        <h2>NCC and<br>Euclidean L2.</h2>
         <div>
           <p><strong>Euclidean L2</strong> directly measures pixel disagreement. It is sensitive to brightness and contrast differences across filter channels, but is simple and effective when their intensities are comparable. The implementation evaluates the exact norm—not mean squared error—and negates it because the search routine maximizes scores.</p>
           <p class="formula light">L2 score(A,B) = −√Σᵢ(Aᵢ−Bᵢ)²</p>
@@ -214,6 +214,15 @@ else:
         <figure><span class="tag bad">Before · no automatic crop</span><img src="./media/before/church-raw.jpg" alt="Church before automatic border handling" loading="lazy"><figcaption><strong>Initial version</strong><span>Scanner and plate bands remain visible.</span></figcaption></figure>
         <figure><span class="tag good">After · detected bounds</span><img src="./media/final/church.jpg" alt="Church after automatic border handling" loading="lazy"><figcaption><strong>Automatic crop</strong><span>No per-image margins or filename rules.</span></figcaption></figure>
       </div>
+      <div class="comparison-subsection" id="corner-comparison">
+        <span>LOCALIZED CORNER ARTIFACT</span>
+        <h3>Self Portrait: the second crop test removes what line profiles miss.</h3>
+        <p>The first automatic crop handles full-length frame bands, but its robust line medians ignore a small saturated block confined to one corner. The added corner-window test detects that block without changing the alignment.</p>
+      </div>
+      <div class="comparison-grid">
+        <figure><span class="tag bad">Before · green corner remains</span><img src="./media/before/self-portrait-green-corner.jpg" alt="Self Portrait after line-profile cropping with a green square still visible in the lower-right corner" loading="lazy"><figcaption><strong>Line-profile crop only</strong><span>The localized green block is too small to change a full-line median.</span></figcaption></figure>
+        <figure><span class="tag good">After · corner test</span><img src="./media/final/self_portrait.jpg" alt="Self Portrait after the saturated-corner artifact has been removed" loading="lazy"><figcaption><strong>Line + corner-aware crop</strong><span>The shallower affected edge strip is removed with a small guard.</span></figcaption></figure>
+      </div>
       <div class="implementation-note dark-note"><div><span>BORDER SIGNALS</span><h3>From 2D frame to four 1D decisions</h3><p>Full edge lines handle ordinary and nested borders; the corner test handles localized saturated blocks that line medians intentionally ignore.</p></div><pre><code># pseudocode
 profile = luminance_change
         + 0.75 × chroma_change
@@ -223,8 +232,8 @@ crop after the last outer transition above threshold</code></pre></div>
     </section>
 
     <section class="paper-section results" id="results">
-      <div class="section-label"><span>PART 8</span><p>All supplied results</p></div>
-      <div class="split-lead compact"><h2>Fourteen plates,<br>one parameter set.</h2><p>Final images use adaptive NCC/edge alignment and automatic border removal. Offsets are (dy, dx) for green and red relative to blue; positive dy moves down and positive dx moves right.</p></div>
+      <div class="section-label"><span>PART 8</span><p>Fourteen plates, one parameter set</p></div>
+      <div class="split-lead compact"><h2>All supplied<br>results.</h2><p>Final images use adaptive NCC/edge alignment and automatic border removal. Offsets are (dy, dx) for green and red relative to blue; positive dy moves down and positive dx moves right.</p></div>
       <div class="results-grid">
         <figure><img src="./media/final/cathedral.jpg" alt="Cathedral" loading="lazy"><figcaption><h3>Cathedral</h3><p>G (5, 2) · R (12, 3)</p></figcaption></figure>
         <figure><img src="./media/final/church.jpg" alt="Church" loading="lazy"><figcaption><h3>Church</h3><p>G (25, 4) · R (58, −4)</p></figcaption></figure>
@@ -244,8 +253,8 @@ crop after the last outer transition above threshold</code></pre></div>
     </section>
 
     <section class="selected-section" id="selected">
-      <div class="section-label"><span>PART 9</span><p>Images of my choosing</p></div>
-      <div class="split-lead compact"><h2>Three unseen plates.<br>The same algorithm.</h2><p>I chose three distinct high-resolution TIFF plates from the Library of Congress collection. They are not duplicates of the supplied set, and no parameters were changed.</p></div>
+      <div class="section-label"><span>PART 9</span><p>Three unseen plates, the same algorithm</p></div>
+      <div class="split-lead compact"><h2>Images of<br>my choosing.</h2><p>I chose three distinct high-resolution TIFF plates from the Library of Congress collection. They are not duplicates of the supplied set, and no parameters were changed.</p></div>
       <div class="selected-grid">
         <figure><img src="./media/selected/lugano.jpg" alt="Lugano" loading="lazy"><figcaption><div><span>LC–00216</span><h3>Lugano</h3></div><p>G (37, 13) · R (86, 38)</p></figcaption></figure>
         <figure><img src="./media/selected/viasnoi_polianie.jpg" alt="Viasnoi polianie" loading="lazy"><figcaption><div><span>LC–00160</span><h3>Viasnoi polianie</h3></div><p>G (36, 12) · R (71, 14)</p></figcaption></figure>
