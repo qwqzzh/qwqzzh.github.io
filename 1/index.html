@@ -14,8 +14,8 @@
       CS 180 · PROJECT 01
     </a>
     <nav aria-label="Page sections">
-      <a href="#method">Method</a>
-      <a href="#improvements">Improvements</a>
+      <a href="#method">Parts 1–4</a>
+      <a href="#improvements">Parts 5–7</a>
       <a href="#results">Results</a>
       <a href="#selected">Selected works</a>
     </nav>
@@ -40,11 +40,12 @@
     </section>
 
     <section class="light-section intro" id="method">
-      <div class="section-label"><span>01</span><p>Reconstruction pipeline</p></div>
+      <div class="section-label"><span>PART 1</span><p>Problem setup · from a glass plate to RGB</p></div>
       <div class="split-lead">
         <h2>One plate.<br>Three exposures.<br>One color image.</h2>
         <div>
-          <p>Each scan stores blue, green, and red filtered exposures from top to bottom. I split the plate into equal thirds, use blue as the fixed reference, translate green and red, and stack the aligned channels in RGB order. Blue is not mandated by the assignment; it is simply a consistent coordinate system, and any channel could serve as the reference.</p>
+          <p>Prokudin-Gorskii recorded the same scene three times through blue, green, and red filters. The digitized plate stores those grayscale exposures vertically in B–G–R order. Because the plate or camera moved slightly between exposures, directly stacking the three arrays produces colored ghosts. The task is to estimate one 2D translation for green and one for red, both relative to blue, then form an RGB image.</p>
+          <p>The reported displacement is <strong>(dy, dx)</strong>: positive dy moves a channel downward and positive dx moves it to the right. Once the two translations are estimated, only the region supported by all three channels is retained.</p>
           <div class="pipeline" aria-label="Alignment pipeline">
             <div><span>01</span><strong>Split</strong><small>B · G · R</small></div><b>→</b>
             <div><span>02</span><strong>Align</strong><small>G → B · R → B</small></div><b>→</b>
@@ -52,16 +53,38 @@
           </div>
         </div>
       </div>
+      <div class="plate-story">
+        <figure class="raw-plate"><span>INPUT · STACKED GLASS PLATE</span><img src="./media/plates/emir-stacked.jpg" alt="Emir glass plate containing blue, green, and red exposures from top to bottom" loading="lazy"><figcaption>Top → bottom: blue-filter, green-filter, red-filter exposures.</figcaption></figure>
+        <div class="plate-arrow" aria-hidden="true">→</div>
+        <figure class="plate-result"><span>OUTPUT · ALIGNED COLOR</span><img src="./media/final/emir.jpg" alt="Aligned color reconstruction of Emir" loading="lazy"><figcaption>G (49, 24) · R (107, 40), relative to blue.</figcaption></figure>
+      </div>
+      <div class="implementation-note">
+        <div><span>KEY IMPLEMENTATION</span><h3>Split without losing plate data</h3><p>The height of one exposure is ⌊H/3⌋. Any extra scan rows below the third exposure are ignored, and pixel values are converted to floating point before similarity scoring.</p></div>
+        <pre><code># pseudocode
+h = floor(total_height / 3)
+B = plate[0:h]
+G = plate[h:2h]
+R = plate[2h:3h]</code></pre>
+      </div>
     </section>
 
     <section class="dark-section">
-      <div class="section-label"><span>02</span><p>Single-scale alignment</p></div>
+      <div class="section-label"><span>PART 2</span><p>Single-scale exhaustive alignment</p></div>
       <div class="split-lead compact">
         <h2>Start small,<br>search everything.</h2>
         <div>
-          <p>For the three low-resolution JPEGs, I exhaustively evaluate every integer displacement in a [−15, 15] window. The score uses a fixed-size interior window valid for every candidate, so shifts are compared on exactly the same pixels and scanner borders do not dominate.</p>
-          <p class="formula">NCC(A,B) = ((A−μA) · (B−μB)) / (‖A−μA‖₂ ‖B−μB‖₂)</p>
+          <p>For each moving channel M and fixed blue reference B, I enumerate every integer translation d = (dy, dx) in [−15, 15]². The best displacement maximizes a similarity score S on the interior image content:</p>
+          <p class="formula">d* = arg max<sub>d∈[−15,15]²</sub> S(B, shift(M,d))</p>
+          <p>A crucial detail is the scoring window. I intersect the pixels that remain valid for <em>every</em> candidate shift, then remove another 10% interior margin. Every candidate is therefore measured on the same number of pixels. The final translation function writes uncovered pixels as black rather than using wraparound.</p>
         </div>
+      </div>
+      <div class="implementation-note dark-note">
+        <div><span>SEARCH LOGIC</span><h3>961 candidate translations per channel</h3><p>The low-resolution method is intentionally direct: two channels × 31 × 31 scores. This makes the result easy to reason about and satisfies the single-scale requirement.</p></div>
+        <pre><code># pseudocode
+for dy in -15 … 15:
+  for dx in -15 … 15:
+    score = similarity(B_window, shifted_M_window)
+    keep the displacement with the largest score</code></pre>
       </div>
       <div class="image-grid three">
         <figure class="image-card"><img src="./media/final/cathedral.jpg" alt="Aligned Cathedral"><figcaption><div><span>01</span><h3>Cathedral</h3></div><p>G (5, 2) · R (12, 3)</p></figcaption></figure>
@@ -71,7 +94,7 @@
     </section>
 
     <section class="dark-section pyramid-section">
-      <div class="section-label"><span>03</span><p>Multi-scale pyramid</p></div>
+      <div class="section-label"><span>PART 3</span><p>Coarse-to-fine image pyramid</p></div>
       <div class="pyramid-grid">
         <div class="pyramid-diagram" aria-label="Coarse-to-fine pyramid">
           <div style="width:34%">COARSE · SEARCH ±15</div>
@@ -82,20 +105,40 @@
         </div>
         <div>
           <h2>Large motion,<br>without a large search.</h2>
-          <p>Full-resolution TIFFs make a wide exhaustive search too expensive. I repeatedly apply a 2×2 box filter and downsample by two until the longest side is at most 400 pixels. The coarsest level searches broadly; each finer level doubles the estimate and refines it in a ±2 neighborhood.</p>
+          <p>A 31×31 search at full TIFF resolution repeatedly scores millions of pixels. Instead, I build a pyramid by averaging each 2×2 block before decimating by two. Filtering before downsampling reduces aliasing. Pyramid construction stops when the longest side is at most 400 pixels.</p>
+          <p>The coarsest image uses the full ±15 search. Moving one level finer doubles the displacement estimate because a coarse pixel covers two fine pixels; only a ±2 residual correction is then searched. If d<sub>ℓ+1</sub> is the coarser estimate, the next estimate is:</p>
+          <p class="formula">d<sub>ℓ</sub> = 2d<sub>ℓ+1</sub> + arg max<sub>δ∈[−2,2]²</sub> S(B<sub>ℓ</sub>, shift(M<sub>ℓ</sub>, 2d<sub>ℓ+1</sub>+δ))</p>
           <ul class="facts"><li><strong>Coarsest search</strong><span>±15 pixels</span></li><li><strong>Refinement</strong><span>±2 pixels per level</span></li><li><strong>Scoring area</strong><span>fixed valid overlap, inner 80%</span></li><li><strong>Runtime</strong><span>all final images under 25 seconds</span></li></ul>
         </div>
+      </div>
+      <div class="implementation-note dark-note">
+        <div><span>PYRAMID LOGIC</span><h3>Large motion becomes a small correction</h3><p>The same exhaustive aligner is reused at every scale. Only its search center and radius change, which keeps the implementation compact and testable.</p></div>
+        <pre><code># pseudocode
+offset = search(coarsest, center=(0,0), radius=15)
+for each finer level:
+  offset = 2 × offset
+  offset = search(level, center=offset, radius=2)</code></pre>
       </div>
     </section>
 
     <section class="paper-section metrics">
-      <div class="section-label"><span>04</span><p>Required base metrics</p></div>
+      <div class="section-label"><span>PART 4</span><p>Similarity metrics · NCC and Euclidean L2</p></div>
       <div class="split-lead compact">
         <h2>NCC and true<br>Euclidean L2.</h2>
         <div>
-          <p>I implemented both normalized cross-correlation and the exact Euclidean distance <strong>‖A−B‖₂</strong> on raw RGB-channel intensities. The L2 score is negated because the search routine maximizes scores. All displacement candidates use the same number of pixels; this avoids a small-overlap candidate appearing artificially better.</p>
+          <p><strong>Euclidean L2</strong> directly measures pixel disagreement. It is sensitive to brightness and contrast differences across filter channels, but is simple and effective when their intensities are comparable. The implementation evaluates the exact norm—not mean squared error—and negates it because the search routine maximizes scores.</p>
           <p class="formula light">L2 score(A,B) = −√Σᵢ(Aᵢ−Bᵢ)²</p>
+          <p><strong>Zero-mean normalized cross-correlation</strong> first subtracts each window’s mean and divides by its energy. It compares pattern shape instead of absolute intensity and is therefore more tolerant of global brightness and contrast changes.</p>
+          <p class="formula light">NCC(A,B) = ((A−μ<sub>A</sub>) · (B−μ<sub>B</sub>)) / (‖A−μ<sub>A</sub>‖₂ ‖B−μ<sub>B</sub>‖₂)</p>
         </div>
+      </div>
+      <div class="implementation-note light-note">
+        <div><span>METRIC LOGIC</span><h3>One maximization interface</h3><p>Both metrics return a score to maximize. Keeping a shared interface lets the same exhaustive search and pyramid code switch metrics without changing alignment logic.</p></div>
+        <pre><code># pseudocode
+if metric == "ncc":
+  return dot(center(A), center(B)) / energies
+if metric == "l2":
+  return -euclidean_norm(A - B)</code></pre>
       </div>
       <div class="metric-examples">
         <figure><span>NCC · Cathedral</span><img src="./media/metrics/cathedral-ncc.jpg" alt="Cathedral aligned with NCC" loading="lazy"><figcaption>G (5, 2) · R (12, 3)</figcaption></figure>
@@ -126,33 +169,61 @@
       <p class="table-note">These are the required raw-pixel experiments, not cherry-picked final outputs. Their failures motivated the feature extension below.</p>
     </section>
 
-    <section class="dark-section improvements" id="improvements">
-      <div class="section-label"><span>05</span><p>Improvement one · better features</p></div>
+    <section class="dark-section failure" id="improvements">
+      <div class="section-label"><span>PART 5</span><p>Failure analysis · Emir</p></div>
       <div class="split-lead compact">
-        <h2>When intensity lies,<br>follow the edges.</h2>
-        <p>Raw channels can represent the same material with very different brightness. My first extension forced gradient features everywhere: it fixed Emir, but slightly worsened already-stable images such as Three Generations. The final rule instead computes raw NCC and L2 first. If their offsets differ by more than two pixels, only that channel is realigned with gradient-magnitude NCC. Church and Emir’s red channels trigger this fixed, filename-independent fallback.</p>
+        <h2>Why raw pixels<br>fail on Emir.</h2>
+        <div><p>The Emir’s blue robe is bright in one filtered exposure and dark in another. Corresponding pixels therefore do not have corresponding intensities, violating the assumption behind raw-pixel comparison. The problem is especially severe for the red channel: raw NCC settles on R (141, −205), while L2 gives R (103, 57), and neither is visually correct.</p><p>The large disagreement between two otherwise reasonable metrics is useful evidence. Rather than treating one metric as universally correct, I use their disagreement as a confidence signal that raw intensity is unreliable for this channel.</p></div>
       </div>
       <div class="comparison-grid">
         <figure><span class="tag bad">Before · raw NCC</span><img src="./media/before/emir-raw.jpg" alt="Misaligned Emir from raw NCC" loading="lazy"><figcaption><strong>R (141, −205)</strong><span>Cross-channel brightness creates a false match.</span></figcaption></figure>
-        <figure><span class="tag good">After · adaptive edge fallback</span><img src="./media/final/emir.jpg" alt="Correctly aligned Emir after feature fallback" loading="lazy"><figcaption><strong>R (107, 40)</strong><span>Face, robe, and architecture now share structure.</span></figcaption></figure>
+        <figure><span class="tag bad">Before · raw L2</span><img src="./media/metrics/emir-l2.jpg" alt="Imperfect Emir from raw Euclidean L2" loading="lazy"><figcaption><strong>R (103, 57)</strong><span>Closer, but facial and architectural edges remain displaced.</span></figcaption></figure>
       </div>
-      <div class="decision-rule"><span>DECISION RULE</span><p>NCC/L2 agree within 2 px → retain raw pixels. Otherwise → edge-magnitude NCC for that channel only.</p></div>
+    </section>
+
+    <section class="dark-section improvements">
+      <div class="section-label"><span>PART 6</span><p>Improvement · more advanced is not always better</p></div>
+      <div class="split-lead compact">
+        <h2>Use edges<br>only when needed.</h2>
+        <div><p>Gradient magnitude emphasizes structural boundaries that remain stable even when colors change. For each channel image I compute horizontal and vertical finite differences and combine them as <strong>E = √(G<sub>x</sub>² + G<sub>y</sub>²)</strong>. Edge NCC correctly aligns Emir at G (49, 24), R (107, 40).</p><p>My first attempt forced edge matching on every plate. That solved Emir, but shifted Three Generations from the better raw result G (53, 14), R (112, 11) to G (54, 12), R (111, 9), making color outlines around the people more visible. A sophisticated feature is not automatically the best feature for every image.</p><p>The final method selects features independently for green and red. It first computes raw NCC and raw L2. If both coordinate estimates agree within two pixels, the raw result is trusted. If they disagree, that channel alone is recomputed with edge NCC. This fixed rule triggers for the red channels of Church and Emir; every other channel retains raw pixels.</p></div>
+      </div>
+      <div class="comparison-grid">
+        <figure><span class="tag bad">Forced edges everywhere</span><img src="./media/metrics/three-generations-edges.jpg" alt="Three Generations aligned using forced edge features" loading="lazy"><figcaption><strong>G (54, 12) · R (111, 9)</strong><span>Small subject outlines become more noticeable.</span></figcaption></figure>
+        <figure><span class="tag good">Adaptive feature selection</span><img src="./media/final/three_generations.jpg" alt="Three Generations using adaptive feature selection" loading="lazy"><figcaption><strong>G (53, 14) · R (112, 11)</strong><span>Stable raw-pixel alignment is retained.</span></figcaption></figure>
+      </div>
+      <div class="implementation-note dark-note">
+        <div><span>ADAPTIVE RULE</span><h3>Agreement acts as confidence</h3><p>The threshold is fixed and applied to each channel independently. No filename checks or hand-tuned offsets are used.</p></div>
+        <pre><code># pseudocode
+d_ncc = pyramid_align(raw, metric=NCC)
+d_l2  = pyramid_align(raw, metric=L2)
+if max_coordinate_difference(d_ncc, d_l2) ≤ 2:
+  use the requested raw metric
+else:
+  use pyramid_align(gradient_magnitude, metric=NCC)</code></pre>
+      </div>
+      <div class="decision-rule"><span>FINAL EMIR</span><p>G (49, 24) from raw pixels · R (107, 40) from edge-magnitude NCC.</p></div>
     </section>
 
     <section class="warm-section">
-      <div class="section-label"><span>06</span><p>Improvement two · automatic borders</p></div>
+      <div class="section-label"><span>PART 7</span><p>Improvement · automatic border removal</p></div>
       <div class="split-lead compact">
         <h2>Detect the frame,<br>don’t guess a margin.</h2>
-        <p>The initial version left black, white, and colored plate borders. A fixed crop would hide the symptom but remove a different amount of real content from every scan. The improved detector measures line-wise luminance, channel disagreement, and clipped-pixel density near all four edges. It crops after the last statistically unusual transition in the outer 10%, followed by a small proportional guard for antialiased fringes. All thresholds are shared across the dataset.</p>
+        <div><p>The initial version removed only invalid shift overlap, so black, white, and colored plate borders remained. A fixed percentage crop would hide them, but it would discard different amounts of real content from different scans.</p><p>The automatic detector forms three one-dimensional profiles along every edge: median luminance, median channel disagreement max(R,G,B)−min(R,G,B), and the fraction of nearly black or white pixels. After smoothing, it estimates normal transition noise from the central 50% of the photograph and selects the <em>last</em> statistically unusual transition in the outer 10%. Selecting the last transition is important because many plates contain nested white and dark bands.</p><p>A small guard band removes antialiased fringes. A second conservative corner test detects a dense clipped high-chroma block touching two adjacent edges—the case that caused the green square on Self Portrait—then removes only the shallower affected strip. All thresholds and proportions are fixed for the complete dataset.</p></div>
       </div>
       <div class="comparison-grid">
         <figure><span class="tag bad">Before · no automatic crop</span><img src="./media/before/church-raw.jpg" alt="Church before automatic border handling" loading="lazy"><figcaption><strong>Initial version</strong><span>Scanner and plate bands remain visible.</span></figcaption></figure>
         <figure><span class="tag good">After · detected bounds</span><img src="./media/final/church.jpg" alt="Church after automatic border handling" loading="lazy"><figcaption><strong>Automatic crop</strong><span>No per-image margins or filename rules.</span></figcaption></figure>
       </div>
+      <div class="implementation-note dark-note"><div><span>BORDER SIGNALS</span><h3>From 2D frame to four 1D decisions</h3><p>Full edge lines handle ordinary and nested borders; the corner test handles localized saturated blocks that line medians intentionally ignore.</p></div><pre><code># pseudocode
+profile = luminance_change
+        + 0.75 × chroma_change
+        + 0.50 × clipped_fraction_change
+threshold = max(0.008, 2 × central_noise_98th_percentile)
+crop after the last outer transition above threshold</code></pre></div>
     </section>
 
     <section class="paper-section results" id="results">
-      <div class="section-label"><span>07</span><p>All supplied results</p></div>
+      <div class="section-label"><span>PART 8</span><p>All supplied results</p></div>
       <div class="split-lead compact"><h2>Fourteen plates,<br>one parameter set.</h2><p>Final images use adaptive NCC/edge alignment and automatic border removal. Offsets are (dy, dx) for green and red relative to blue; positive dy moves down and positive dx moves right.</p></div>
       <div class="results-grid">
         <figure><img src="./media/final/cathedral.jpg" alt="Cathedral" loading="lazy"><figcaption><h3>Cathedral</h3><p>G (5, 2) · R (12, 3)</p></figcaption></figure>
@@ -173,7 +244,7 @@
     </section>
 
     <section class="selected-section" id="selected">
-      <div class="section-label"><span>08</span><p>Selected from the archive</p></div>
+      <div class="section-label"><span>PART 9</span><p>Images of my choosing</p></div>
       <div class="split-lead compact"><h2>Three unseen plates.<br>The same algorithm.</h2><p>I chose three distinct high-resolution TIFF plates from the Library of Congress collection. They are not duplicates of the supplied set, and no parameters were changed.</p></div>
       <div class="selected-grid">
         <figure><img src="./media/selected/lugano.jpg" alt="Lugano" loading="lazy"><figcaption><div><span>LC–00216</span><h3>Lugano</h3></div><p>G (37, 13) · R (86, 38)</p></figcaption></figure>
@@ -184,7 +255,7 @@
     </section>
 
     <section class="dark-section limitation">
-      <div class="section-label"><span>09</span><p>What translation cannot fix</p></div>
+      <div class="section-label"><span>PART 10</span><p>Limitations · what translation cannot fix</p></div>
       <div class="limitation-grid">
         <img src="./media/final/three_generations.jpg" alt="Three Generations showing localized subject motion" loading="lazy">
         <div><h2>A sharp scene can still contain color ghosts.</h2><p>In Three Generations and Harvesters, buildings, rails, and ground align sharply while small colored fringes remain around people. The exposures were captured sequentially, so a moving subject does not occupy the same position in every channel. One global integer translation cannot correct this local motion without damaging the static background.</p><div class="decision-rule"><span>LIMITATION</span><p>Global translation models camera or plate shift—not independent object motion.</p></div></div>
