@@ -1,0 +1,108 @@
+:root {
+  --ink: #141414;
+  --paper: #f1eee7;
+  --muted: #6f6d67;
+  --line: rgba(20, 20, 20, .2);
+  --acid: #e8ff54;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: Arial, Helvetica, sans-serif;
+  --mono: "Courier New", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font: 16px/1.55 var(--sans);
+}
+a { color: inherit; text-decoration: none; }
+
+.site-header {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5vw;
+  border-bottom: 1px solid var(--line);
+  font: 700 11px/1 var(--mono);
+  letter-spacing: .12em;
+}
+.brand { display: flex; align-items: center; gap: 13px; }
+.rgb { display: inline-flex; gap: 3px; }
+.rgb i { display: block; width: 5px; height: 18px; background: #3c82d2; }
+.rgb i:nth-child(2) { background: #38a968; }
+.rgb i:nth-child(3) { background: #da514c; }
+.course-link { color: var(--muted); transition: color .2s ease; }
+.course-link:hover { color: var(--ink); }
+
+.hero {
+  min-height: min(760px, calc(100vh - 70px));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(64px, 10vw, 150px) 5vw 48px;
+  background:
+    radial-gradient(circle at 79% 16%, rgba(232,255,84,.64), transparent 24%),
+    linear-gradient(117deg, transparent 0 55%, rgba(20,20,20,.045) 55% 55.2%, transparent 55.2%);
+}
+.kicker { margin: 0; font: 700 11px/1 var(--mono); letter-spacing: .14em; }
+.hero h1 {
+  max-width: 1200px;
+  margin: 70px 0;
+  font: 400 clamp(4.2rem, 10.7vw, 10.4rem)/.81 var(--serif);
+  letter-spacing: -.07em;
+}
+.hero h1 em { font-weight: 400; color: transparent; -webkit-text-stroke: 1.5px var(--ink); }
+.hero-foot { display: flex; align-items: end; justify-content: space-between; gap: 40px; border-top: 1px solid var(--line); padding-top: 24px; }
+.hero-foot p { max-width: 550px; margin: 0; }
+.coordinate { text-align: right; color: var(--muted); font: 11px/1.45 var(--mono); }
+
+.projects { padding: clamp(80px, 10vw, 150px) 5vw; background: #151515; color: #eeeae1; }
+.section-title { display: grid; grid-template-columns: 110px 1fr; align-items: baseline; margin-bottom: 54px; }
+.section-title span { color: #9c9a94; font: 11px/1 var(--mono); }
+.section-title h2 { margin: 0; font: 400 clamp(3rem, 7vw, 7rem)/1 var(--serif); letter-spacing: -.045em; }
+.project-list { border-top: 1px solid rgba(255,255,255,.18); }
+.project-row {
+  display: grid;
+  grid-template-columns: 110px minmax(280px, 1fr) 170px;
+  gap: 24px;
+  align-items: center;
+  min-height: 148px;
+  padding: 24px 18px 24px 0;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  transition: padding .25s ease, background .25s ease, color .25s ease;
+}
+.project-row:hover { padding-left: 18px; background: var(--acid); color: var(--ink); }
+.project-row.featured { background: #202020; }
+.project-row.featured:hover { background: var(--acid); }
+.project-number { color: #a09e97; font: 12px/1 var(--mono); }
+.project-row:hover .project-number { color: #52524c; }
+.project-row h3 { margin: 0 0 7px; font: 400 clamp(1.45rem, 2.7vw, 2.6rem)/1.05 var(--serif); letter-spacing: -.025em; }
+.project-row p { margin: 0; color: #9e9b94; }
+.project-row:hover p { color: #4f4f49; }
+.status { justify-self: end; color: #929089; font: 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; text-align: right; }
+.available .status { color: #d5d3cc; }
+.project-row:hover .status { color: var(--ink); }
+
+footer { display: flex; justify-content: space-between; gap: 30px; padding: 32px 5vw; color: #77746e; font: 11px/1.5 var(--mono); }
+footer p { margin: 0; }
+
+@media (max-width: 720px) {
+  .site-header { padding: 0 22px; }
+  .course-link { display: none; }
+  .hero, .projects { padding-left: 22px; padding-right: 22px; }
+  .hero { min-height: 690px; }
+  .hero h1 { font-size: clamp(3.6rem, 19vw, 6.5rem); }
+  .section-title { grid-template-columns: 56px 1fr; }
+  .project-row { grid-template-columns: 44px 1fr; min-height: 138px; padding-right: 0; }
+  .status { display: none; }
+  footer { flex-direction: column; padding-left: 22px; padding-right: 22px; }
+}
+
+@media print {
+  .hero { min-height: 650px; }
+  .project-row { break-inside: avoid; }
+}
+

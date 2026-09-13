@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CS 180 Project 1: colorizing Prokudin-Gorskii glass-plate photographs with image alignment.">
+  <title>Project 1 · Images of the Russian Empire</title>
+  <link rel="stylesheet" href="./project.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="../">
+      <span class="rgb-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      CS 180 · PROJECT 01
+    </a>
+    <nav aria-label="Page sections">
+      <a href="#method">Method</a>
+      <a href="#improvements">Improvements</a>
+      <a href="#results">Results</a>
+      <a href="#selected">Selected works</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Images of the Russian Empire · Fall 2026</p>
+        <h1>Color from<br>three moments<br>in time.</h1>
+        <p class="dek">Reconstructing Prokudin-Gorskii’s glass-plate photographs with exhaustive alignment, a coarse-to-fine pyramid, and two targeted improvements for difficult color channels and damaged borders.</p>
+        <div class="hero-stats" aria-label="Project summary">
+          <div><strong>17</strong><span>plates aligned</span></div>
+          <div><strong>&lt;25s</strong><span>per final image</span></div>
+          <div><strong>2</strong><span>base metrics</span></div>
+        </div>
+      </div>
+      <figure class="hero-visual">
+        <img src="./media/final/emir.jpg" alt="Colorized portrait of the Emir of Bukhara">
+        <figcaption><span>PLATE 03 / EMIR</span><span class="offsets"><b>G</b> (49, 24) &nbsp; <b>R</b> (107, 40)</span></figcaption>
+      </figure>
+    </section>
+
+    <section class="light-section intro" id="method">
+      <div class="section-label"><span>01</span><p>Reconstruction pipeline</p></div>
+      <div class="split-lead">
+        <h2>One plate.<br>Three exposures.<br>One color image.</h2>
+        <div>
+          <p>Each scan stores blue, green, and red filtered exposures from top to bottom. I split the plate into equal thirds, use blue as the fixed reference, translate green and red, and stack the aligned channels in RGB order. Blue is not mandated by the assignment; it is simply a consistent coordinate system, and any channel could serve as the reference.</p>
+          <div class="pipeline" aria-label="Alignment pipeline">
+            <div><span>01</span><strong>Split</strong><small>B · G · R</small></div><b>→</b>
+            <div><span>02</span><strong>Align</strong><small>G → B · R → B</small></div><b>→</b>
+            <div><span>03</span><strong>Compose</strong><small>R · G · B</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dark-section">
+      <div class="section-label"><span>02</span><p>Single-scale alignment</p></div>
+      <div class="split-lead compact">
+        <h2>Start small,<br>search everything.</h2>
+        <div>
+          <p>For the three low-resolution JPEGs, I exhaustively evaluate every integer displacement in a [−15, 15] window. The score uses a fixed-size interior window valid for every candidate, so shifts are compared on exactly the same pixels and scanner borders do not dominate.</p>
+          <p class="formula">NCC(A,B) = ((A−μA) · (B−μB)) / (‖A−μA‖₂ ‖B−μB‖₂)</p>
+        </div>
+      </div>
+      <div class="image-grid three">
+        <figure class="image-card"><img src="./media/final/cathedral.jpg" alt="Aligned Cathedral"><figcaption><div><span>01</span><h3>Cathedral</h3></div><p>G (5, 2) · R (12, 3)</p></figcaption></figure>
+        <figure class="image-card"><img src="./media/final/monastery.jpg" alt="Aligned Monastery" loading="lazy"><figcaption><div><span>02</span><h3>Monastery</h3></div><p>G (−3, 2) · R (3, 2)</p></figcaption></figure>
+        <figure class="image-card"><img src="./media/final/tobolsk.jpg" alt="Aligned Tobolsk" loading="lazy"><figcaption><div><span>03</span><h3>Tobolsk</h3></div><p>G (3, 3) · R (6, 3)</p></figcaption></figure>
+      </div>
+    </section>
+
+    <section class="dark-section pyramid-section">
+      <div class="section-label"><span>03</span><p>Multi-scale pyramid</p></div>
+      <div class="pyramid-grid">
+        <div class="pyramid-diagram" aria-label="Coarse-to-fine pyramid">
+          <div style="width:34%">COARSE · SEARCH ±15</div>
+          <div style="width:49%">×2 · REFINE ±2</div>
+          <div style="width:65%">×2 · REFINE ±2</div>
+          <div style="width:82%">×2 · REFINE ±2</div>
+          <div style="width:100%">FULL RESOLUTION</div>
+        </div>
+        <div>
+          <h2>Large motion,<br>without a large search.</h2>
+          <p>Full-resolution TIFFs make a wide exhaustive search too expensive. I repeatedly apply a 2×2 box filter and downsample by two until the longest side is at most 400 pixels. The coarsest level searches broadly; each finer level doubles the estimate and refines it in a ±2 neighborhood.</p>
+          <ul class="facts"><li><strong>Coarsest search</strong><span>±15 pixels</span></li><li><strong>Refinement</strong><span>±2 pixels per level</span></li><li><strong>Scoring area</strong><span>fixed valid overlap, inner 80%</span></li><li><strong>Runtime</strong><span>all final images under 25 seconds</span></li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="paper-section metrics">
+      <div class="section-label"><span>04</span><p>Required base metrics</p></div>
+      <div class="split-lead compact">
+        <h2>NCC and true<br>Euclidean L2.</h2>
+        <div>
+          <p>I implemented both normalized cross-correlation and the exact Euclidean distance <strong>‖A−B‖₂</strong> on raw RGB-channel intensities. The L2 score is negated because the search routine maximizes scores. All displacement candidates use the same number of pixels; this avoids a small-overlap candidate appearing artificially better.</p>
+          <p class="formula light">L2 score(A,B) = −√Σᵢ(Aᵢ−Bᵢ)²</p>
+        </div>
+      </div>
+      <div class="metric-examples">
+        <figure><span>NCC · Cathedral</span><img src="./media/metrics/cathedral-ncc.jpg" alt="Cathedral aligned with NCC" loading="lazy"><figcaption>G (5, 2) · R (12, 3)</figcaption></figure>
+        <figure><span>L2 · Cathedral</span><img src="./media/metrics/cathedral-l2.jpg" alt="Cathedral aligned with Euclidean L2" loading="lazy"><figcaption>G (5, 2) · R (12, 3)</figcaption></figure>
+        <figure><span>L2 · Emir</span><img src="./media/metrics/emir-l2.jpg" alt="Imperfect Emir raw-pixel L2 result" loading="lazy"><figcaption>G (49, 24) · R (103, 57), imperfect</figcaption></figure>
+      </div>
+      <div class="metric-table-wrap">
+        <table>
+          <thead><tr><th>Image</th><th>NCC green</th><th>NCC red</th><th>L2 green</th><th>L2 red</th></tr></thead>
+          <tbody>
+            <tr><td>Cathedral</td><td>(5, 2)</td><td>(12, 3)</td><td>(5, 2)</td><td>(12, 3)</td></tr>
+            <tr><td>Church</td><td>(25, 4)</td><td>(58, −4)</td><td>(25, 4)</td><td class="warn">(64, 267) failed</td></tr>
+            <tr><td>Emir</td><td>(49, 24)</td><td class="warn">(141, −205) failed</td><td>(49, 24)</td><td class="warn">(103, 57) imperfect</td></tr>
+            <tr><td>Harvesters</td><td>(60, 17)</td><td>(124, 13)</td><td>(59, 16)</td><td>(124, 13)</td></tr>
+            <tr><td>Icon</td><td>(41, 17)</td><td>(89, 23)</td><td>(41, 17)</td><td>(90, 23)</td></tr>
+            <tr><td>Ilemselga</td><td>(40, 7)</td><td>(130, 11)</td><td>(39, 7)</td><td>(130, 11)</td></tr>
+            <tr><td>Melons</td><td>(82, 11)</td><td>(178, 13)</td><td>(82, 11)</td><td>(178, 13)</td></tr>
+            <tr><td>Monastery</td><td>(−3, 2)</td><td>(3, 2)</td><td>(−3, 2)</td><td>(3, 2)</td></tr>
+            <tr><td>Religious Painting</td><td>(28, 3)</td><td>(68, 7)</td><td>(28, 3)</td><td>(68, 7)</td></tr>
+            <tr><td>Self Portrait</td><td>(79, 29)</td><td>(176, 37)</td><td>(79, 29)</td><td>(176, 37)</td></tr>
+            <tr><td>Siren</td><td>(49, −6)</td><td>(96, −25)</td><td>(49, −6)</td><td>(96, −25)</td></tr>
+            <tr><td>Three Generations</td><td>(53, 14)</td><td>(112, 11)</td><td>(53, 14)</td><td>(112, 11)</td></tr>
+            <tr><td>Tobolsk</td><td>(3, 3)</td><td>(6, 3)</td><td>(3, 3)</td><td>(6, 3)</td></tr>
+            <tr><td>Wharf</td><td>(15, −7)</td><td>(83, −16)</td><td>(15, −7)</td><td>(83, −16)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">These are the required raw-pixel experiments, not cherry-picked final outputs. Their failures motivated the feature extension below.</p>
+    </section>
+
+    <section class="dark-section improvements" id="improvements">
+      <div class="section-label"><span>05</span><p>Improvement one · better features</p></div>
+      <div class="split-lead compact">
+        <h2>When intensity lies,<br>follow the edges.</h2>
+        <p>Raw channels can represent the same material with very different brightness. My first extension forced gradient features everywhere: it fixed Emir, but slightly worsened already-stable images such as Three Generations. The final rule instead computes raw NCC and L2 first. If their offsets differ by more than two pixels, only that channel is realigned with gradient-magnitude NCC. Church and Emir’s red channels trigger this fixed, filename-independent fallback.</p>
+      </div>
+      <div class="comparison-grid">
+        <figure><span class="tag bad">Before · raw NCC</span><img src="./media/before/emir-raw.jpg" alt="Misaligned Emir from raw NCC" loading="lazy"><figcaption><strong>R (141, −205)</strong><span>Cross-channel brightness creates a false match.</span></figcaption></figure>
+        <figure><span class="tag good">After · adaptive edge fallback</span><img src="./media/final/emir.jpg" alt="Correctly aligned Emir after feature fallback" loading="lazy"><figcaption><strong>R (107, 40)</strong><span>Face, robe, and architecture now share structure.</span></figcaption></figure>
+      </div>
+      <div class="decision-rule"><span>DECISION RULE</span><p>NCC/L2 agree within 2 px → retain raw pixels. Otherwise → edge-magnitude NCC for that channel only.</p></div>
+    </section>
+
+    <section class="warm-section">
+      <div class="section-label"><span>06</span><p>Improvement two · automatic borders</p></div>
+      <div class="split-lead compact">
+        <h2>Detect the frame,<br>don’t guess a margin.</h2>
+        <p>The initial version left black, white, and colored plate borders. A fixed crop would hide the symptom but remove a different amount of real content from every scan. The improved detector measures line-wise luminance, channel disagreement, and clipped-pixel density near all four edges. It crops after the last statistically unusual transition in the outer 10%, followed by a small proportional guard for antialiased fringes. All thresholds are shared across the dataset.</p>
+      </div>
+      <div class="comparison-grid">
+        <figure><span class="tag bad">Before · no automatic crop</span><img src="./media/before/church-raw.jpg" alt="Church before automatic border handling" loading="lazy"><figcaption><strong>Initial version</strong><span>Scanner and plate bands remain visible.</span></figcaption></figure>
+        <figure><span class="tag good">After · detected bounds</span><img src="./media/final/church.jpg" alt="Church after automatic border handling" loading="lazy"><figcaption><strong>Automatic crop</strong><span>No per-image margins or filename rules.</span></figcaption></figure>
+      </div>
+    </section>
+
+    <section class="paper-section results" id="results">
+      <div class="section-label"><span>07</span><p>All supplied results</p></div>
+      <div class="split-lead compact"><h2>Fourteen plates,<br>one parameter set.</h2><p>Final images use adaptive NCC/edge alignment and automatic border removal. Offsets are (dy, dx) for green and red relative to blue; positive dy moves down and positive dx moves right.</p></div>
+      <div class="results-grid">
+        <figure><img src="./media/final/cathedral.jpg" alt="Cathedral" loading="lazy"><figcaption><h3>Cathedral</h3><p>G (5, 2) · R (12, 3)</p></figcaption></figure>
+        <figure><img src="./media/final/church.jpg" alt="Church" loading="lazy"><figcaption><h3>Church</h3><p>G (25, 4) · R (58, −4)</p></figcaption></figure>
+        <figure><img src="./media/final/emir.jpg" alt="Emir" loading="lazy"><figcaption><h3>Emir</h3><p>G (49, 24) · R (107, 40)</p></figcaption></figure>
+        <figure><img src="./media/final/harvesters.jpg" alt="Harvesters" loading="lazy"><figcaption><h3>Harvesters</h3><p>G (60, 17) · R (124, 13)</p></figcaption></figure>
+        <figure><img src="./media/final/icon.jpg" alt="Icon" loading="lazy"><figcaption><h3>Icon</h3><p>G (41, 17) · R (89, 23)</p></figcaption></figure>
+        <figure><img src="./media/final/ilemselga.jpg" alt="Ilemselga" loading="lazy"><figcaption><h3>Ilemselga</h3><p>G (40, 7) · R (130, 11)</p></figcaption></figure>
+        <figure><img src="./media/final/melons.jpg" alt="Melons" loading="lazy"><figcaption><h3>Melons</h3><p>G (82, 11) · R (178, 13)</p></figcaption></figure>
+        <figure><img src="./media/final/monastery.jpg" alt="Monastery" loading="lazy"><figcaption><h3>Monastery</h3><p>G (−3, 2) · R (3, 2)</p></figcaption></figure>
+        <figure><img src="./media/final/religous_painting.jpg" alt="Religious Painting" loading="lazy"><figcaption><h3>Religious Painting</h3><p>G (28, 3) · R (68, 7)</p></figcaption></figure>
+        <figure><img src="./media/final/self_portrait.jpg" alt="Self Portrait" loading="lazy"><figcaption><h3>Self Portrait</h3><p>G (79, 29) · R (176, 37)</p></figcaption></figure>
+        <figure><img src="./media/final/siren.jpg" alt="Siren" loading="lazy"><figcaption><h3>Siren</h3><p>G (49, −6) · R (96, −25)</p></figcaption></figure>
+        <figure><img src="./media/final/three_generations.jpg" alt="Three Generations" loading="lazy"><figcaption><h3>Three Generations</h3><p>G (53, 14) · R (112, 11)</p></figcaption></figure>
+        <figure><img src="./media/final/tobolsk.jpg" alt="Tobolsk" loading="lazy"><figcaption><h3>Tobolsk</h3><p>G (3, 3) · R (6, 3)</p></figcaption></figure>
+        <figure><img src="./media/final/wharf.jpg" alt="Wharf" loading="lazy"><figcaption><h3>Wharf</h3><p>G (15, −7) · R (83, −16)</p></figcaption></figure>
+      </div>
+    </section>
+
+    <section class="selected-section" id="selected">
+      <div class="section-label"><span>08</span><p>Selected from the archive</p></div>
+      <div class="split-lead compact"><h2>Three unseen plates.<br>The same algorithm.</h2><p>I chose three distinct high-resolution TIFF plates from the Library of Congress collection. They are not duplicates of the supplied set, and no parameters were changed.</p></div>
+      <div class="selected-grid">
+        <figure><img src="./media/selected/lugano.jpg" alt="Lugano" loading="lazy"><figcaption><div><span>LC–00216</span><h3>Lugano</h3></div><p>G (37, 13) · R (86, 38)</p></figcaption></figure>
+        <figure><img src="./media/selected/viasnoi_polianie.jpg" alt="Viasnoi polianie" loading="lazy"><figcaption><div><span>LC–00160</span><h3>Viasnoi polianie</h3></div><p>G (36, 12) · R (71, 14)</p></figcaption></figure>
+        <figure><img src="./media/selected/zakat.jpg" alt="Zakat" loading="lazy"><figcaption><div><span>LC–00169</span><h3>Zakat</h3></div><p>G (75, −41) · R (114, −68)</p></figcaption></figure>
+      </div>
+      <div class="metric-table-wrap custom-table"><table><thead><tr><th>Selected plate</th><th>NCC green</th><th>NCC red</th><th>L2 green</th><th>L2 red</th></tr></thead><tbody><tr><td>Viasnoi polianie</td><td>(36, 12)</td><td>(71, 14)</td><td>(37, 13)</td><td>(73, 14)</td></tr><tr><td>Zakat</td><td>(75, −41)</td><td>(114, −68)</td><td>(75, −41)</td><td>(114, −68)</td></tr><tr><td>Lugano</td><td>(37, 13)</td><td>(86, 38)</td><td>(37, 13)</td><td>(86, 38)</td></tr></tbody></table></div>
+    </section>
+
+    <section class="dark-section limitation">
+      <div class="section-label"><span>09</span><p>What translation cannot fix</p></div>
+      <div class="limitation-grid">
+        <img src="./media/final/three_generations.jpg" alt="Three Generations showing localized subject motion" loading="lazy">
+        <div><h2>A sharp scene can still contain color ghosts.</h2><p>In Three Generations and Harvesters, buildings, rails, and ground align sharply while small colored fringes remain around people. The exposures were captured sequentially, so a moving subject does not occupy the same position in every channel. One global integer translation cannot correct this local motion without damaging the static background.</p><div class="decision-rule"><span>LIMITATION</span><p>Global translation models camera or plate shift—not independent object motion.</p></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer><a href="../">← All projects</a><p>CS 180 · NumPy alignment · Pillow I/O · fixed parameters</p></footer>
+</body>
+</html>
+

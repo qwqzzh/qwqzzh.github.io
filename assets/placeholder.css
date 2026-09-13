@@ -1,0 +1,9 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { min-height: 100vh; margin: 0; display: grid; place-items: center; color: #ece9e1; background: #111820; font-family: Arial, sans-serif; }
+main { width: min(900px, calc(100% - 44px)); padding: 8vw 0; }
+main > p:first-child { color: #e5b85c; font: 700 11px/1 "Courier New", monospace; letter-spacing: .15em; }
+h1 { margin: 55px 0 36px; font: 400 clamp(4rem, 11vw, 9rem)/.87 Georgia, serif; letter-spacing: -.06em; }
+.note { margin-bottom: 54px; color: #9ba7b4; font-size: 1.1rem; }
+a { color: #ece9e1; font: 700 12px/1 "Courier New", monospace; text-decoration: none; border-bottom: 1px solid #e5b85c; padding-bottom: 7px; }
+
