@@ -2,10 +2,10 @@
 
 GitHub Pages source for `https://qwqzzh.github.io/`.
 
-- `index.html` — portfolio landing page with links to Projects 0–5
+- `index.html` — portfolio landing page with links to Projects 0–4 and the Final Project
 - `0/` — Project 0 report and media
 - `1/` — Project 1 report and web-sized result images
-- `2/`, `3/`, `4/`, `5/` — placeholders for future project reports
+- `2/`, `3/`, `4/`, `final/` — placeholders for future project reports
 - `assets/` — shared portfolio styles
 
 The project reports are static HTML/CSS so GitHub Pages can publish the main
