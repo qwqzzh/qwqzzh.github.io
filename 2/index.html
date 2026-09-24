@@ -19,8 +19,8 @@
   <main>
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">FUN WITH FILTERS &amp; FREQUENCIES · FALL 2026</p>
-        <h1>What survives<br><em>at a distance?</em></h1>
+        <p class="eyebrow">CS 180 · PROJECT 2 · FALL 2026</p>
+        <h1>Fun with Filters<br><em>&amp; Frequencies</em></h1>
         <p class="lede">A study of images as bands of spatial frequency—from writing convolution by hand to sharpening, perceptual hybrids, and seamless multiresolution composites.</p>
         <div class="hero-meta"><span><b>07</b> parts</span><span><b>05</b> stack levels</span><span><b>04</b> custom blends</span></div>
       </div>
@@ -41,36 +41,70 @@
     </section>
 
     <section class="chapter light" id="filters">
-      <header class="chapter-head"><div><span>PART 1</span><p>Fun with filters</p></div><h2>Edges begin with<br>a tiny difference.</h2></header>
+      <header class="chapter-head"><div><span>PART 1</span></div><h2>Fun with Filters</h2></header>
 
-      <article class="story" id="part-1-1">
-        <div class="story-copy">
-          <p class="part-label">1.1 · CONVOLUTIONS FROM SCRATCH</p>
-          <h3>Four loops, two loops, one operation.</h3>
-          <p>I implemented same-size 2D convolution twice using NumPy: first with four explicit loops over image and kernel coordinates, then with two loops and a vectorized dot product over each local window. Both versions flip the kernel and apply zero padding, so they match <code>scipy.signal.convolve2d(..., mode="same", boundary="fill")</code>.</p>
-          <p>On the 800 × 692 grayscale portrait and a 9 × 9 box filter, the four-loop version took <strong>10.770 s</strong>; the two-loop version took <strong>1.389 s</strong>. Their maximum errors against SciPy were 2.44 × 10<sup>−15</sup> and 7.77 × 10<sup>−16</sup>. Zero padding preserves output dimensions but darkens border responses because out-of-frame pixels are treated as zero.</p>
+      <article class="story detail-story" id="part-1-1">
+        <div class="story-copy wide-copy">
+          <p class="part-label">PART 1.1</p>
+          <h3>Convolutions from Scratch!</h3>
+          <p>For an image I and kernel K, 2D convolution computes (I ∗ K)[y,x] = Σ<sub>i</sub>Σ<sub>j</sub>I[y−i,x−j]K[i,j]. In code, I first flip the kernel in both axes and slide it across the image. I implemented this operation using only NumPy in two ways: a literal four-loop implementation and a two-loop implementation that replaces the two inner loops with an element-wise product and <code>np.sum</code>.</p>
+          <p>Both functions support rectangular kernels and return an output with the same shape as the input. For a k<sub>h</sub> × k<sub>w</sub> kernel, I pad the image by half the kernel size before sliding. Pixels outside the original image are filled with zero, matching SciPy's <code>boundary="fill", fillvalue=0</code>. This choice is simple and makes the comparison exact, although filters near the border see artificial black pixels and can therefore produce darker blur values or strong derivative responses.</p>
           <div class="source-tag personal">MY PHOTOGRAPH</div>
         </div>
-        <pre class="code"><code># four-loop version
-for y in range(height):
-  for x in range(width):
-    for ky in range(kh):
-      for kx in range(kw):
-        out[y,x] += padded[y+ky,x+kx] * flipped[ky,kx]
+        <div class="code-grid full-figure">
+          <div><h4>Four explicit loops</h4><pre class="code"><code>def convolve2d_four_loops(image, kernel):
+    kh, kw = kernel.shape
+    padded = np.pad(
+        image,
+        ((kh // 2, (kh - 1) // 2),
+         (kw // 2, (kw - 1) // 2)),
+        mode="constant"
+    )
+    flipped = np.flip(kernel, axis=(0, 1))
+    output = np.zeros_like(image, dtype=float)
 
-# two-loop version
-for y in range(height):
-  for x in range(width):
-    window = padded[y:y+kh, x:x+kw]
-    out[y,x] = np.sum(window * flipped)</code></pre>
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            for ky in range(kh):
+                for kx in range(kw):
+                    output[y, x] += (
+                        padded[y + ky, x + kx]
+                        * flipped[ky, kx]
+                    )
+    return output</code></pre></div>
+          <div><h4>Two loops + vectorized window</h4><pre class="code"><code>def convolve2d_two_loops(image, kernel):
+    kh, kw = kernel.shape
+    padded = np.pad(
+        image,
+        ((kh // 2, (kh - 1) // 2),
+         (kw // 2, (kw - 1) // 2)),
+        mode="constant"
+    )
+    flipped = np.flip(kernel, axis=(0, 1))
+    output = np.zeros_like(image, dtype=float)
+
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            window = padded[y:y+kh, x:x+kw]
+            output[y, x] = np.sum(window * flipped)
+    return output</code></pre></div>
+        </div>
+        <div class="comparison-box full-figure">
+          <div><h4>SciPy baseline</h4><pre class="code compact-code"><code>scipy_result = convolve2d(
+    image, kernel, mode="same",
+    boundary="fill", fillvalue=0
+)</code></pre></div>
+          <div><h4>Comparison and analysis</h4><p>I applied all three implementations to the 800 × 692 grayscale portrait using a normalized 9 × 9 box filter. The four-loop version took <strong>10.870 s</strong>, the two-loop version took <strong>1.376 s</strong>, and SciPy took <strong>0.039 s</strong>. Replacing the inner Python loops with NumPy made my implementation about 7.9× faster; SciPy was another 35× faster because the entire convolution runs in optimized library code. The maximum differences from SciPy were only 2.44 × 10<sup>−15</sup> and 7.77 × 10<sup>−16</sup>; D<sub>x</sub> and D<sub>y</sub> matched exactly. These floating-point-scale errors verify that the kernel flip, indexing, padding, and output shape are correct.</p></div>
+        </div>
         <figure class="full-figure"><img src="./media/part1_1/portrait_convolutions.png" alt="Portrait before and after box filter and finite difference convolutions" loading="lazy"><figcaption>Original portrait, 9 × 9 box-filter result, and signed D<sub>x</sub>/D<sub>y</sub> responses.</figcaption></figure>
       </article>
 
       <article class="story split-story" id="part-1-2">
         <div class="story-copy">
-          <p class="part-label">1.2 · FINITE DIFFERENCE OPERATOR</p>
-          <h3>From derivatives to a binary edge map.</h3>
-          <p>Convolving the cameraman with D<sub>x</sub> = [1, −1] and D<sub>y</sub> = [1, −1]<sup>T</sup> gives horizontal and vertical change. I combine them as ‖∇I‖ = √(I<sub>x</sub><sup>2</sup> + I<sub>y</sub><sup>2</sup>) and threshold the magnitude.</p>
+          <p class="part-label">PART 1.2</p>
+          <h3>Finite Difference Operator</h3>
+          <p>The finite-difference filters D<sub>x</sub> = [1, −1] and D<sub>y</sub> = [1, −1]<sup>T</sup> approximate the first partial derivatives of image intensity. A large response to D<sub>x</sub> means neighboring pixels change strongly along the horizontal direction, so it highlights predominantly vertical edges; D<sub>y</sub> analogously highlights horizontal edges. Because the responses are signed, opposite brightness transitions appear with opposite signs.</p>
+          <p>I combine the directional derivatives into the nonnegative gradient magnitude ‖∇I‖ = √(I<sub>x</sub><sup>2</sup> + I<sub>y</sub><sup>2</sup>). This measures edge strength independently of orientation. Binarization then classifies a pixel as an edge when its magnitude exceeds a chosen threshold.</p>
           <p>I tested thresholds 0.10, 0.15, 0.20, and 0.25, then selected <strong>0.20</strong>. Lower values preserve more weak texture but admit noise in the grass and background; higher values begin to remove real contours from the camera, tripod, and silhouette. The selected value is a qualitative compromise.</p>
         </div>
         <figure><img src="./media/part1_2/threshold_comparison.png" alt="Comparison of four edge thresholds" loading="lazy"><figcaption>Threshold selection: 0.20 suppresses most noise while retaining the important contours.</figcaption></figure>
@@ -79,9 +113,11 @@ for y in range(height):
 
       <article class="story" id="part-1-3">
         <div class="story-copy wide-copy">
-          <p class="part-label">1.3 · DERIVATIVE OF GAUSSIAN</p>
-          <h3>Smooth first; differentiate once.</h3>
-          <p>A 9 × 9 Gaussian with σ = 2 suppresses high-frequency noise before differentiation. The resulting edges are thicker and more continuous than the raw finite-difference result, with much less texture in flat regions. I also convolved the Gaussian kernel with D<sub>x</sub> and D<sub>y</sub> to create derivative-of-Gaussian filters. By associativity, applying each DoG filter once should equal Gaussian smoothing followed by a finite difference; the measured interior difference is at floating-point precision.</p>
+          <p class="part-label">PART 1.3</p>
+          <h3>Derivative of Gaussian (DoG) Filter</h3>
+          <p>Finite differences amplify rapid pixel-to-pixel variation, so they respond not only to object boundaries but also to sensor noise and fine texture. I first convolved the cameraman image with a normalized 9 × 9 Gaussian kernel with σ = 2. The Gaussian is a low-pass filter: nearby values are averaged with smoothly decreasing weights, attenuating high-frequency noise before differentiation.</p>
+          <p><strong>Comparison with Part 1.2:</strong> the unsmoothed finite-difference magnitude is thin but visibly noisy, especially in the grass and background. After Gaussian smoothing, isolated responses disappear and the important contours of the person, camera, and tripod become more continuous. The remaining edges are slightly wider and less precisely localized because smoothing spreads an intensity transition across neighboring pixels. The smoothed result therefore trades a small amount of localization for substantially better noise suppression; this also allows a lower threshold of 0.08.</p>
+          <p>Finally, I formed DoG kernels by convolving G with D<sub>x</sub> and D<sub>y</sub>. Associativity gives (I ∗ G) ∗ D = I ∗ (G ∗ D), so the two-stage procedure and a single convolution with each precomputed DoG filter should agree. Their maximum interior magnitude difference was 6.80 × 10<sup>−16</sup>, confirming that the two approaches are numerically equivalent apart from boundary effects and floating-point rounding.</p>
         </div>
         <div class="figure-grid two">
           <figure><img src="./media/part1_3/gaussian_edge_results.png" alt="Gaussian smoothing and resulting edge maps" loading="lazy"><figcaption>Raw versus Gaussian-smoothed gradients; the smoothed map uses threshold 0.08.</figcaption></figure>
@@ -92,7 +128,7 @@ for y in range(height):
     </section>
 
     <section class="chapter ink" id="frequencies">
-      <header class="chapter-head"><div><span>PART 2.1</span><p>Image sharpening</p></div><h2>Recovering presence,<br>not lost information.</h2></header>
+      <header class="chapter-head"><div><span>PART 2.1</span></div><h2>Image “Sharpening”</h2></header>
       <div class="formula-band"><p>I<sub>sharp</sub> = I + α(I − G<sub>σ</sub> ∗ I)</p><span>unsharp masking = original + scaled high frequencies</span></div>
       <article class="story">
         <div class="story-copy wide-copy">
@@ -107,18 +143,22 @@ for y in range(height):
 
       <article class="story personal-study">
         <div class="story-copy">
-          <p class="part-label">PERSONAL STUDY · TWO IMPERFECT MEMORIES</p>
+          <p class="part-label">PERSONAL STUDY · TWO LIKED BUT IMPERFECT IMAGES</p>
           <h3>Choosing α by the kind of blur.</h3>
           <p>The sightseeing photograph is slightly out of focus; α = 1.5 makes the columns and subject outline noticeably clearer without becoming too harsh. The curtain-call photograph contains both motion blur and defocus, so α = 1.0 is safer: larger values mostly amplify hair, fabric, couch texture, and noise rather than recovering faces.</p>
-          <p>These results are satisfying but less refined than modern editing software, which can add edge-aware sharpening, denoising, lens correction, local masks, deblurring, or learned enhancement. This global filter is valuable precisely because its behavior remains simple and interpretable.</p>
+          <p>Although this simple global filter is less refined than modern editing software—which may combine edge-aware sharpening, denoising, lens correction, local masks, deblurring, and learned enhancement—I am satisfied with the result. Both photographs become noticeably clearer while still looking natural, and the method remains simple enough that every change can be explained through frequency components.</p>
           <div class="source-tag personal">MY PHOTOGRAPHS</div>
         </div>
         <figure><img src="./media/part2_1/custom_alpha_comparison.jpg" alt="Two personal photographs sharpened with alpha values from 0.5 to 2" loading="lazy"><figcaption>Amount comparison for defocus blur and mixed motion/defocus blur.</figcaption></figure>
+        <div class="before-after-grid full-figure">
+          <div class="before-after-card"><h4>Sightseeing photograph · selected α = 1.5</h4><div><figure><img src="./media/part2_1/columns_original.jpg" alt="Original slightly defocused sightseeing photograph" loading="lazy"><figcaption>Before sharpening</figcaption></figure><figure><img src="./media/part2_1/columns_sharpened.jpg" alt="Sightseeing photograph sharpened with alpha 1.5" loading="lazy"><figcaption>After sharpening · α = 1.5</figcaption></figure></div></div>
+          <div class="before-after-card"><h4>Curtain-call photograph · selected α = 1.0</h4><div><figure><img src="./media/part2_1/group_original.jpg" alt="Original curtain-call photograph with motion and defocus blur" loading="lazy"><figcaption>Before sharpening</figcaption></figure><figure><img src="./media/part2_1/group_sharpened.jpg" alt="Curtain-call photograph sharpened with alpha 1.0" loading="lazy"><figcaption>After sharpening · α = 1.0</figcaption></figure></div></div>
+        </div>
       </article>
     </section>
 
     <section class="chapter acid" id="hybrids">
-      <header class="chapter-head"><div><span>PART 2.2</span><p>Hybrid images</p></div><h2>One image nearby.<br>Another from afar.</h2></header>
+      <header class="chapter-head"><div><span>PART 2.2</span></div><h2>Hybrid Images</h2></header>
       <div class="split-intro"><p>High frequencies dominate at close range, while only smooth low frequencies remain visible at a distance. A hybrid image adds a Gaussian low-pass of one source to a complementary high-pass of another:</p><p class="equation">H = G<sub>σL</sub> ∗ A + w[B − G<sub>σH</sub> ∗ B]</p></div>
 
       <article class="feature-hybrid">
@@ -135,18 +175,16 @@ for y in range(height):
 
       <article class="supporting">
         <div class="support-head"><p class="part-label">MORE FROM MY CREATIVE EXPLORATION</p><h3>Three cats, one rock.</h3></div>
-        <div class="figure-grid two">
+        <div class="rock-cat-supplement">
           <figure><img src="./media/part2_2/rock_cat_reverse_three_way_comparison.jpg" alt="Three rock hybrids with different cats" loading="lazy"><figcaption>Profile tabby, flipped frontal tabby, and orange cat as high-frequency partners.</figcaption></figure>
-          <figure><img src="./media/part2_2/rock_cat_reverse_profile_multiscale.jpg" alt="Profile cat and rock hybrid at multiple scales" loading="lazy"><figcaption>The profile cat has the closest silhouette match.</figcaption></figure>
-          <figure><img src="./media/part2_2/rock_cat_reverse_orange_multiscale.jpg" alt="Orange cat and rock hybrid at multiple scales" loading="lazy"><figcaption>The orange cat has a clean background but weaker tonal correspondence.</figcaption></figure>
-          <figure><img src="./media/part2_2/rock_cat_three_way_comparison.jpg" alt="Opposite frequency ordering for three cats and rock" loading="lazy"><figcaption>For comparison, the original ordering uses each cat as low frequency and the rock as high frequency.</figcaption></figure>
+          <div class="figure-grid two"><figure><img src="./media/part2_2/rock_cat_reverse_profile_multiscale.jpg" alt="Profile cat and rock hybrid at multiple scales" loading="lazy"><figcaption>The profile cat has the closest silhouette match.</figcaption></figure><figure><img src="./media/part2_2/rock_cat_reverse_orange_multiscale.jpg" alt="Orange cat and rock hybrid at multiple scales" loading="lazy"><figcaption>The orange cat has a clean background but weaker tonal correspondence.</figcaption></figure></div>
         </div>
       </article>
 
       <article class="supporting course-example">
         <div class="support-head"><p class="part-label">COURSE-PROVIDED EXAMPLE</p><h3>Derek + Nutmeg.</h3></div>
         <p>I mapped the eye pairs to common target points with a similarity transform, then combined Derek’s low frequencies (σ = 7) with Nutmeg’s high frequencies (σ = 5). This standard pair verifies the implementation before the custom experiments.</p>
-        <div class="figure-grid three">
+        <div class="large-figure-stack">
           <figure><img src="./media/part2_2/derek_nutmeg_aligned.jpg" alt="Aligned Derek and Nutmeg inputs" loading="lazy"><figcaption>Aligned inputs.</figcaption></figure>
           <figure><img src="./media/part2_2/derek_nutmeg_process.jpg" alt="Derek and Nutmeg filtering process" loading="lazy"><figcaption>Low-pass + high-pass → hybrid.</figcaption></figure>
           <figure><img src="./media/part2_2/derek_nutmeg_multiscale.jpg" alt="Derek Nutmeg hybrid at multiple scales" loading="lazy"><figcaption>Nutmeg nearby; Derek at a distance.</figcaption></figure>
@@ -156,10 +194,9 @@ for y in range(height):
       <article class="supporting">
         <div class="support-head"><p class="part-label">SELF-PORTRAITS · CHANGE OF EXPRESSION</p><h3>A frown that resolves into a smile.</h3></div>
         <p>Nearly identical pose, lighting, glasses, and background make the expression itself the dominant change. The selected direction uses the smile as low frequency and the frown as high frequency with (σ<sub>L</sub>, σ<sub>H</sub>, w) = (12, 5, 1.2). Furrowed brows and the downturned mouth lead nearby; the broad smile emerges as those details disappear.</p>
-        <div class="figure-grid three">
+        <div class="expression-layout">
           <figure><img src="./media/part2_2/expression_strength_comparison.jpg" alt="Expression hybrid parameter comparison" loading="lazy"><figcaption>Parameter study.</figcaption></figure>
-          <figure><img src="./media/part2_2/expression_happy_low_frown_high.jpg" alt="Final expression hybrid" loading="lazy"><figcaption>Selected final hybrid.</figcaption></figure>
-          <figure><img src="./media/part2_2/expression_happy_low_frown_high_multiscale.jpg" alt="Expression hybrid at multiple scales" loading="lazy"><figcaption>Close frown → distant smile.</figcaption></figure>
+          <div class="figure-grid two"><figure><img src="./media/part2_2/expression_happy_low_frown_high.jpg" alt="Final expression hybrid" loading="lazy"><figcaption>Selected final hybrid.</figcaption></figure><figure><img src="./media/part2_2/expression_happy_low_frown_high_multiscale.jpg" alt="Expression hybrid at multiple scales" loading="lazy"><figcaption>Close frown → distant smile.</figcaption></figure></div>
         </div>
       </article>
 
@@ -178,7 +215,7 @@ for y in range(height):
     </section>
 
     <section class="chapter paper" id="stacks">
-      <header class="chapter-head"><div><span>PART 2.3</span><p>Gaussian &amp; Laplacian stacks</p></div><h2>Same dimensions.<br>Different scales.</h2></header>
+      <header class="chapter-head"><div><span>PART 2.3</span></div><h2>Gaussian and Laplacian Stacks</h2></header>
       <div class="split-intro">
         <div><p>A stack never downsamples. Starting from G<sub>0</sub> = I, I repeatedly filter to form G<sub>i+1</sub> = G ∗ G<sub>i</sub>. I used five levels and a 41 × 41 Gaussian with σ = 8, implemented without any built-in pyramid function.</p></div>
         <div><p>The Laplacian levels are L<sub>i</sub> = G<sub>i</sub> − G<sub>i+1</sub>, with the final residual L<sub>4</sub> = G<sub>4</sub>. Their sum telescopes back to the original image at floating-point precision.</p></div>
@@ -190,7 +227,7 @@ for y in range(height):
     </section>
 
     <section class="chapter ember" id="blending">
-      <header class="chapter-head"><div><span>PART 2.4</span><p>Multiresolution blending</p></div><h2>A seam that changes<br>with frequency.</h2></header>
+      <header class="chapter-head"><div><span>PART 2.4</span></div><h2>Multiresolution Blending <small>(a.k.a. the Oraple!)</small></h2></header>
       <div class="blend-equation"><p>B<sub>i</sub> = M<sub>i</sub>L<sub>i</sub><sup>A</sup> + (1 − M<sub>i</sub>)L<sub>i</sub><sup>B</sup></p><span>Build a Gaussian stack for the mask, blend every Laplacian band, then sum the bands.</span></div>
 
       <article class="story oraple">
