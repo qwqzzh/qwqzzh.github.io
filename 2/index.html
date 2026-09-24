@@ -1,2 +1,242 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project 2 · CS 180</title><link rel="stylesheet" href="../assets/placeholder.css"></head><body><main><p>CS 180 · PROJECT 02</p><h1>Fun with Filters<br>and Frequencies</h1><p class="note">Project page reserved for future work.</p><a href="../">← Back to portfolio</a></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CS 180 Project 2: convolution, filtering, hybrid images, Gaussian and Laplacian stacks, and multiresolution blending.">
+  <title>Project 2 · Fun with Filters and Frequencies</title>
+  <link rel="stylesheet" href="./project.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><span class="mark" aria-hidden="true"></span>CS 180 · PROJECT 02</a>
+    <nav aria-label="Project sections"><a href="#filters">Filters</a><a href="#frequencies">Frequencies</a><a href="#hybrids">Hybrids</a><a href="#blending">Blending</a></nav>
+  </header>
 
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">FUN WITH FILTERS &amp; FREQUENCIES · FALL 2026</p>
+        <h1>What survives<br><em>at a distance?</em></h1>
+        <p class="lede">A study of images as bands of spatial frequency—from writing convolution by hand to sharpening, perceptual hybrids, and seamless multiresolution composites.</p>
+        <div class="hero-meta"><span><b>07</b> parts</span><span><b>05</b> stack levels</span><span><b>04</b> custom blends</span></div>
+      </div>
+      <figure class="hero-image">
+        <img src="./media/part2_2/rock_cat_reverse_front_flipped_hybrid.jpg" alt="Hybrid image that appears as a cat nearby and a seaside rock from afar">
+        <figcaption><span>FAVORITE HYBRID · MY CREATIVE EXPLORATION</span><span>CAT ↔ ROCK</span></figcaption>
+      </figure>
+      <div class="frequency-rule" aria-hidden="true"><span>LOW</span><i></i><span>HIGH</span></div>
+    </section>
+
+    <section class="overview">
+      <p class="section-kicker">PROJECT MAP</p>
+      <div class="overview-grid">
+        <article><span>01</span><h2>Detect</h2><p>Build convolution and find image edges from finite differences.</p></article>
+        <article><span>02</span><h2>Separate</h2><p>Split images into low- and high-frequency components.</p></article>
+        <article><span>03</span><h2>Recombine</h2><p>Use perception and multiscale masks to create new images.</p></article>
+      </div>
+    </section>
+
+    <section class="chapter light" id="filters">
+      <header class="chapter-head"><div><span>PART 1</span><p>Fun with filters</p></div><h2>Edges begin with<br>a tiny difference.</h2></header>
+
+      <article class="story" id="part-1-1">
+        <div class="story-copy">
+          <p class="part-label">1.1 · CONVOLUTIONS FROM SCRATCH</p>
+          <h3>Four loops, two loops, one operation.</h3>
+          <p>I implemented same-size 2D convolution twice using NumPy: first with four explicit loops over image and kernel coordinates, then with two loops and a vectorized dot product over each local window. Both versions flip the kernel and apply zero padding, so they match <code>scipy.signal.convolve2d(..., mode="same", boundary="fill")</code>.</p>
+          <p>On the 800 × 692 grayscale portrait and a 9 × 9 box filter, the four-loop version took <strong>10.770 s</strong>; the two-loop version took <strong>1.389 s</strong>. Their maximum errors against SciPy were 2.44 × 10<sup>−15</sup> and 7.77 × 10<sup>−16</sup>. Zero padding preserves output dimensions but darkens border responses because out-of-frame pixels are treated as zero.</p>
+          <div class="source-tag personal">MY PHOTOGRAPH</div>
+        </div>
+        <pre class="code"><code># four-loop version
+for y in range(height):
+  for x in range(width):
+    for ky in range(kh):
+      for kx in range(kw):
+        out[y,x] += padded[y+ky,x+kx] * flipped[ky,kx]
+
+# two-loop version
+for y in range(height):
+  for x in range(width):
+    window = padded[y:y+kh, x:x+kw]
+    out[y,x] = np.sum(window * flipped)</code></pre>
+        <figure class="full-figure"><img src="./media/part1_1/portrait_convolutions.png" alt="Portrait before and after box filter and finite difference convolutions" loading="lazy"><figcaption>Original portrait, 9 × 9 box-filter result, and signed D<sub>x</sub>/D<sub>y</sub> responses.</figcaption></figure>
+      </article>
+
+      <article class="story split-story" id="part-1-2">
+        <div class="story-copy">
+          <p class="part-label">1.2 · FINITE DIFFERENCE OPERATOR</p>
+          <h3>From derivatives to a binary edge map.</h3>
+          <p>Convolving the cameraman with D<sub>x</sub> = [1, −1] and D<sub>y</sub> = [1, −1]<sup>T</sup> gives horizontal and vertical change. I combine them as ‖∇I‖ = √(I<sub>x</sub><sup>2</sup> + I<sub>y</sub><sup>2</sup>) and threshold the magnitude.</p>
+          <p>I tested thresholds 0.10, 0.15, 0.20, and 0.25, then selected <strong>0.20</strong>. Lower values preserve more weak texture but admit noise in the grass and background; higher values begin to remove real contours from the camera, tripod, and silhouette. The selected value is a qualitative compromise.</p>
+        </div>
+        <figure><img src="./media/part1_2/threshold_comparison.png" alt="Comparison of four edge thresholds" loading="lazy"><figcaption>Threshold selection: 0.20 suppresses most noise while retaining the important contours.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part1_2/finite_difference_edges.png" alt="Finite difference derivatives, gradient magnitude, and thresholded edges" loading="lazy"><figcaption>The complete finite-difference pipeline.</figcaption></figure>
+      </article>
+
+      <article class="story" id="part-1-3">
+        <div class="story-copy wide-copy">
+          <p class="part-label">1.3 · DERIVATIVE OF GAUSSIAN</p>
+          <h3>Smooth first; differentiate once.</h3>
+          <p>A 9 × 9 Gaussian with σ = 2 suppresses high-frequency noise before differentiation. The resulting edges are thicker and more continuous than the raw finite-difference result, with much less texture in flat regions. I also convolved the Gaussian kernel with D<sub>x</sub> and D<sub>y</sub> to create derivative-of-Gaussian filters. By associativity, applying each DoG filter once should equal Gaussian smoothing followed by a finite difference; the measured interior difference is at floating-point precision.</p>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/part1_3/gaussian_edge_results.png" alt="Gaussian smoothing and resulting edge maps" loading="lazy"><figcaption>Raw versus Gaussian-smoothed gradients; the smoothed map uses threshold 0.08.</figcaption></figure>
+          <figure><img src="./media/part1_3/dog_filters.png" alt="Gaussian and derivative of Gaussian filters" loading="lazy"><figcaption>The Gaussian, DoG D<sub>x</sub>, and DoG D<sub>y</sub> kernels.</figcaption></figure>
+        </div>
+        <figure class="full-figure"><img src="./media/part1_3/dog_verification.png" alt="Comparison of sequential smoothing and direct DoG convolution" loading="lazy"><figcaption>Two convolutions and one precomputed DoG convolution produce the same interior result.</figcaption></figure>
+      </article>
+    </section>
+
+    <section class="chapter ink" id="frequencies">
+      <header class="chapter-head"><div><span>PART 2.1</span><p>Image sharpening</p></div><h2>Recovering presence,<br>not lost information.</h2></header>
+      <div class="formula-band"><p>I<sub>sharp</sub> = I + α(I − G<sub>σ</sub> ∗ I)</p><span>unsharp masking = original + scaled high frequencies</span></div>
+      <article class="story">
+        <div class="story-copy wide-copy">
+          <p>A Gaussian blur retains low frequencies; subtracting it from the original isolates high frequencies. Adding those details back with amount α increases local edge contrast. I combined the operations into one convolution kernel, (1 + α)δ − αG, and used a 9 × 9 Gaussian with σ = 2.</p>
+          <p>On the Taj Mahal, increasing α makes edges crisper but eventually creates halos and harsh texture. The blur-then-sharpen test is more revealing: sharpening restores contrast around surviving edges, yet it cannot reconstruct frequencies actually removed by the blur. That is why the recovered portrait looks clearer but not identical to the original.</p>
+          <div class="source-tag course">TAJ · COURSE-PROVIDED IMAGE</div>
+        </div>
+        <figure class="full-figure dark-frame"><img src="./media/part2_1/taj_unsharp_process.png" alt="Taj Mahal original, blurred, high frequencies, and sharpened result" loading="lazy"><figcaption>Low-pass, residual high frequencies, and the final unsharp-mask result.</figcaption></figure>
+        <figure class="full-figure dark-frame"><img src="./media/part2_1/taj_amount_comparison.png" alt="Taj Mahal sharpened with several alpha values" loading="lazy"><figcaption>Sharpening amount study: α = 0, 0.5, 1.5, and 3.0.</figcaption></figure>
+        <figure class="full-figure dark-frame"><img src="./media/part2_1/portrait_blur_recovery.png" alt="Sharp portrait, synthetically blurred portrait, and sharpened recovery" loading="lazy"><figcaption>A controlled blur/recovery experiment. The “original” in this panel is resized for display, so it is not a pixel-for-pixel view of the full camera file.</figcaption></figure>
+      </article>
+
+      <article class="story personal-study">
+        <div class="story-copy">
+          <p class="part-label">PERSONAL STUDY · TWO IMPERFECT MEMORIES</p>
+          <h3>Choosing α by the kind of blur.</h3>
+          <p>The sightseeing photograph is slightly out of focus; α = 1.5 makes the columns and subject outline noticeably clearer without becoming too harsh. The curtain-call photograph contains both motion blur and defocus, so α = 1.0 is safer: larger values mostly amplify hair, fabric, couch texture, and noise rather than recovering faces.</p>
+          <p>These results are satisfying but less refined than modern editing software, which can add edge-aware sharpening, denoising, lens correction, local masks, deblurring, or learned enhancement. This global filter is valuable precisely because its behavior remains simple and interpretable.</p>
+          <div class="source-tag personal">MY PHOTOGRAPHS</div>
+        </div>
+        <figure><img src="./media/part2_1/custom_alpha_comparison.jpg" alt="Two personal photographs sharpened with alpha values from 0.5 to 2" loading="lazy"><figcaption>Amount comparison for defocus blur and mixed motion/defocus blur.</figcaption></figure>
+      </article>
+    </section>
+
+    <section class="chapter acid" id="hybrids">
+      <header class="chapter-head"><div><span>PART 2.2</span><p>Hybrid images</p></div><h2>One image nearby.<br>Another from afar.</h2></header>
+      <div class="split-intro"><p>High frequencies dominate at close range, while only smooth low frequencies remain visible at a distance. A hybrid image adds a Gaussian low-pass of one source to a complementary high-pass of another:</p><p class="equation">H = G<sub>σL</sub> ∗ A + w[B − G<sub>σH</sub> ∗ B]</p></div>
+
+      <article class="feature-hybrid">
+        <div class="feature-title"><div><p class="part-label">FAVORITE RESULT · COMPLETE PROCESS</p><h3>The rock that grows a cat face.</h3></div><div class="source-tag personal">MY CREATIVE EXPLORATION</div></div>
+        <p class="feature-copy">I noticed that the central seaside rock already resembles a seated animal. The strongest reversed hybrid uses the rock as the low-frequency image and a horizontally flipped frontal tabby as the high-frequency image. I aligned the head-to-body axes and selected σ<sub>L</sub> = 5, σ<sub>H</sub> = 4, and cat weight w = 0.9. Nearby, symmetric eyes, ears, whiskers, and fur emerge; reduced or viewed from afar, those details vanish and the seaside rock returns.</p>
+        <figure class="full-figure"><img src="./media/part2_2/rock_cat_favorite_originals_alignment.jpg" alt="Original rock and cat images followed by aligned inputs" loading="lazy"><figcaption>Original sources, horizontal flip, and geometric alignment.</figcaption></figure>
+        <div class="figure-grid two unequal">
+          <figure><img src="./media/part2_2/rock_cat_reverse_strength_comparison.jpg" alt="Rock cat cutoff and strength comparison" loading="lazy"><figcaption>Cutoff experiment. The restrained left setting gives the cleanest distance-dependent transition.</figcaption></figure>
+          <figure class="final-card"><img src="./media/part2_2/rock_cat_reverse_front_flipped_hybrid.jpg" alt="Final rock and cat hybrid" loading="lazy"><figcaption>Final hybrid · σ<sub>L</sub> 5 · σ<sub>H</sub> 4 · w 0.9</figcaption></figure>
+        </div>
+        <figure class="full-figure"><img src="./media/part2_2/rock_cat_favorite_fourier_process.jpg" alt="Rock cat filtered components and Fourier transforms" loading="lazy"><figcaption>Frequency analysis: input spectra, filtered components, hybrid spectrum, and final image. The rock energy contracts toward the center; the cat high-pass suppresses the center and preserves outer frequencies.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part2_2/rock_cat_reverse_front_flipped_multiscale.jpg" alt="Rock cat hybrid at progressively smaller scales" loading="lazy"><figcaption>The same pixels at multiple display scales make the perceptual switch visible.</figcaption></figure>
+      </article>
+
+      <article class="supporting">
+        <div class="support-head"><p class="part-label">MORE FROM MY CREATIVE EXPLORATION</p><h3>Three cats, one rock.</h3></div>
+        <div class="figure-grid two">
+          <figure><img src="./media/part2_2/rock_cat_reverse_three_way_comparison.jpg" alt="Three rock hybrids with different cats" loading="lazy"><figcaption>Profile tabby, flipped frontal tabby, and orange cat as high-frequency partners.</figcaption></figure>
+          <figure><img src="./media/part2_2/rock_cat_reverse_profile_multiscale.jpg" alt="Profile cat and rock hybrid at multiple scales" loading="lazy"><figcaption>The profile cat has the closest silhouette match.</figcaption></figure>
+          <figure><img src="./media/part2_2/rock_cat_reverse_orange_multiscale.jpg" alt="Orange cat and rock hybrid at multiple scales" loading="lazy"><figcaption>The orange cat has a clean background but weaker tonal correspondence.</figcaption></figure>
+          <figure><img src="./media/part2_2/rock_cat_three_way_comparison.jpg" alt="Opposite frequency ordering for three cats and rock" loading="lazy"><figcaption>For comparison, the original ordering uses each cat as low frequency and the rock as high frequency.</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="supporting course-example">
+        <div class="support-head"><p class="part-label">COURSE-PROVIDED EXAMPLE</p><h3>Derek + Nutmeg.</h3></div>
+        <p>I mapped the eye pairs to common target points with a similarity transform, then combined Derek’s low frequencies (σ = 7) with Nutmeg’s high frequencies (σ = 5). This standard pair verifies the implementation before the custom experiments.</p>
+        <div class="figure-grid three">
+          <figure><img src="./media/part2_2/derek_nutmeg_aligned.jpg" alt="Aligned Derek and Nutmeg inputs" loading="lazy"><figcaption>Aligned inputs.</figcaption></figure>
+          <figure><img src="./media/part2_2/derek_nutmeg_process.jpg" alt="Derek and Nutmeg filtering process" loading="lazy"><figcaption>Low-pass + high-pass → hybrid.</figcaption></figure>
+          <figure><img src="./media/part2_2/derek_nutmeg_multiscale.jpg" alt="Derek Nutmeg hybrid at multiple scales" loading="lazy"><figcaption>Nutmeg nearby; Derek at a distance.</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="supporting">
+        <div class="support-head"><p class="part-label">SELF-PORTRAITS · CHANGE OF EXPRESSION</p><h3>A frown that resolves into a smile.</h3></div>
+        <p>Nearly identical pose, lighting, glasses, and background make the expression itself the dominant change. The selected direction uses the smile as low frequency and the frown as high frequency with (σ<sub>L</sub>, σ<sub>H</sub>, w) = (12, 5, 1.2). Furrowed brows and the downturned mouth lead nearby; the broad smile emerges as those details disappear.</p>
+        <div class="figure-grid three">
+          <figure><img src="./media/part2_2/expression_strength_comparison.jpg" alt="Expression hybrid parameter comparison" loading="lazy"><figcaption>Parameter study.</figcaption></figure>
+          <figure><img src="./media/part2_2/expression_happy_low_frown_high.jpg" alt="Final expression hybrid" loading="lazy"><figcaption>Selected final hybrid.</figcaption></figure>
+          <figure><img src="./media/part2_2/expression_happy_low_frown_high_multiscale.jpg" alt="Expression hybrid at multiple scales" loading="lazy"><figcaption>Close frown → distant smile.</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="supporting">
+        <div class="support-head"><p class="part-label">EXTERNALLY SOURCED IMAGES · CREATIVE COMPOSITION</p><h3>Two directions for a tree spirit.</h3></div>
+        <p>With the elderly face low-passed (σ = 12) and bark high-passed (σ = 5), texture dominates nearby and the face emerges far away. Reversing the roles—tree σ = 4, face σ = 4, face weight 0.9—makes eyes and wrinkles visible nearby while the trunk takes over at a distance. Feathering the face boundary prevents its rectangular crop from becoming an artificial high-frequency edge.</p>
+        <div class="figure-grid two">
+          <figure><img src="./media/part2_2/tree_spirit_hybrid.jpg" alt="Tree bark high frequency over elderly face low frequency" loading="lazy"><figcaption>Face low-pass + bark high-pass.</figcaption></figure>
+          <figure><img src="./media/part2_2/tree_spirit_multiscale.jpg" alt="Tree spirit hybrid at multiple scales" loading="lazy"><figcaption>First ordering across scale.</figcaption></figure>
+          <figure><img src="./media/part2_2/tree_spirit_reverse_hybrid.jpg" alt="Elderly face high frequency over tree low frequency" loading="lazy"><figcaption>Tree low-pass + face high-pass.</figcaption></figure>
+          <figure><img src="./media/part2_2/tree_spirit_reverse_multiscale.jpg" alt="Reverse tree spirit hybrid at multiple scales" loading="lazy"><figcaption>Reversed ordering across scale.</figcaption></figure>
+        </div>
+      </article>
+
+      <aside class="cutoff-note"><h3>What “cutoff” means here</h3><p>A Gaussian has a smooth response rather than a hard frequency boundary: H(f) = exp(−2π²σ²f²), with an approximate −3 dB cutoff f<sub>c</sub> = √ln2 / (2πσ) cycles per pixel. Increasing σ therefore lowers the effective cutoff and smooths more aggressively. The high-pass response is 1 − H(f). Every selected σ above came from visual comparison, not a universal preset.</p></aside>
+    </section>
+
+    <section class="chapter paper" id="stacks">
+      <header class="chapter-head"><div><span>PART 2.3</span><p>Gaussian &amp; Laplacian stacks</p></div><h2>Same dimensions.<br>Different scales.</h2></header>
+      <div class="split-intro">
+        <div><p>A stack never downsamples. Starting from G<sub>0</sub> = I, I repeatedly filter to form G<sub>i+1</sub> = G ∗ G<sub>i</sub>. I used five levels and a 41 × 41 Gaussian with σ = 8, implemented without any built-in pyramid function.</p></div>
+        <div><p>The Laplacian levels are L<sub>i</sub> = G<sub>i</sub> − G<sub>i+1</sub>, with the final residual L<sub>4</sub> = G<sub>4</sub>. Their sum telescopes back to the original image at floating-point precision.</p></div>
+      </div>
+      <div class="source-tag course">APPLE + ORANGE · COURSE-PROVIDED IMAGES</div>
+      <figure class="full-figure"><img src="./media/part2_3/gaussian_stacks.jpg" alt="Five-level Gaussian stacks for apple and orange" loading="lazy"><figcaption>Gaussian stacks: progressively smoother, never smaller.</figcaption></figure>
+      <figure class="full-figure"><img src="./media/part2_3/laplacian_stacks.jpg" alt="Five-level Laplacian stacks for apple and orange" loading="lazy"><figcaption>Laplacian stacks isolate bands of detail plus a low-frequency residual.</figcaption></figure>
+      <figure class="figure-342"><img src="./media/part2_3/figure_3_42_recreation.jpg" alt="Recreation of Figure 3.42 panels a through l" loading="lazy"><figcaption>Recreation of Figure 3.42 (a)–(l): masked apple contribution, masked orange contribution, their sum at three scales, collapsed contributions, and the final Oraple.</figcaption></figure>
+    </section>
+
+    <section class="chapter ember" id="blending">
+      <header class="chapter-head"><div><span>PART 2.4</span><p>Multiresolution blending</p></div><h2>A seam that changes<br>with frequency.</h2></header>
+      <div class="blend-equation"><p>B<sub>i</sub> = M<sub>i</sub>L<sub>i</sub><sup>A</sup> + (1 − M<sub>i</sub>)L<sub>i</sub><sup>B</sup></p><span>Build a Gaussian stack for the mask, blend every Laplacian band, then sum the bands.</span></div>
+
+      <article class="story oraple">
+        <div class="story-copy"><p class="part-label">THE ORAPLE · VERTICAL STEP MASK</p><h3>One hard decision, softened at every scale.</h3><p>A binary mask selects apple on the left and orange on the right. Its Gaussian stack makes the transition increasingly broad at lower frequencies: fine fruit texture stays localized, while large illumination and color differences cross the seam gently. Compared with a direct cut, the five-level result hides the boundary without globally blurring either fruit.</p></div>
+        <figure><img src="./media/part2_4/oraple_comparison.jpg" alt="Direct apple orange cut compared with multiresolution blend" loading="lazy"><figcaption>Direct cut versus multiresolution Oraple.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part2_4/oraple_process.jpg" alt="Representative Laplacian levels in the Oraple blend" loading="lazy"><figcaption>Representative weighted Laplacian levels and collapsed stacks.</figcaption></figure>
+      </article>
+
+      <article class="blend-feature">
+        <div class="feature-title"><div><p class="part-label">FAVORITE CUSTOM BLEND · COMPLETE PROCESS</p><h3>Becoming sand.</h3></div><div class="source-tag external">CREATIVE COMPOSITION · SOURCED IMAGERY</div></div>
+        <p class="feature-copy">An irregular mask follows a hand-drawn curve from the head through shoulder, torso, skirt, and lower edge. Low-frequency noise, small holes, and islands keep the boundary granular. The 960 × 900 canvas adds breathing room to the right; the transition band spans about 15% of its width. Particles shift from muted gray-gold near the clothing to paler beige-gold at the edge, where their density falls away.</p>
+        <div class="figure-grid two unequal">
+          <figure><img src="./media/part2_4/sand_dissolve_particles_inputs_mask.jpg" alt="Figure, particle texture, and irregular dissolve mask" loading="lazy"><figcaption>Aligned inputs and the irregular mask.</figcaption></figure>
+          <figure class="final-card warm"><img src="./media/part2_4/sand_dissolve_particles.jpg" alt="Seated figure dissolving into gold sand particles" loading="lazy"><figcaption>Selected mid-gold final blend.</figcaption></figure>
+        </div>
+        <figure class="full-figure"><img src="./media/part2_4/sand_dissolve_particles_mask_stack.jpg" alt="Five-level Gaussian stack of irregular sand mask" loading="lazy"><figcaption>The mask Gaussian stack controls a different seam width at every frequency.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part2_4/sand_dissolve_particles_process.jpg" alt="Multiresolution process for the sand dissolve composite" loading="lazy"><figcaption>Figure-10-style process: weighted contributions, combined bands, and collapsed result.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part2_4/sand_dissolve_particles_comparison.jpg" alt="Direct composite compared with multiresolution sand dissolve" loading="lazy"><figcaption>Multiresolution blending softens broad tonal changes while preserving fine particles.</figcaption></figure>
+      </article>
+
+      <article class="gallery-section">
+        <div class="support-head"><p class="part-label">ADDITIONAL CUSTOM BLENDS</p><h3>Straight seams and shaped masks.</h3></div>
+        <div class="result-grid">
+          <figure><img src="./media/part2_4/cat_dog.jpg" alt="Left half cat and right half dog multiresolution blend" loading="lazy"><figcaption><b>Cat + dog</b><span>Vertical mask · aligned eyes and nose</span></figcaption></figure>
+          <figure><img src="./media/part2_4/earth_moon.jpg" alt="Left half Earth and right half Moon blend" loading="lazy"><figcaption><b>Earth + Moon</b><span>Vertical mask · aligned circles</span></figcaption></figure>
+          <figure><img src="./media/part2_4/lily_firework.jpg" alt="Orange lily replacing the center of a firework" loading="lazy"><figcaption><b>Lily + firework</b><span>Irregular petal mask · selected final</span></figcaption></figure>
+        </div>
+        <div class="gallery-notes">
+          <p><strong>Cat + dog.</strong> A similarity transform aligns the eye centers and nose, then a vertical mask joins the pale backgrounds and central white markings.</p>
+          <p><strong>Earth + Moon.</strong> Estimated circle centers and radii bring both bodies to a shared 300-pixel radius before the vertical blend.</p>
+          <p><strong>Lily + firework.</strong> An HSV-derived petal mask extracts the entire bloom. A 400-pixel, gold-orange flower, wider feathered edge, and subtle central glow help it merge with the radiating trails.</p>
+        </div>
+        <figure class="full-figure"><img src="./media/part2_4/lily_firework_process.jpg" alt="Laplacian process for blending a lily with a firework" loading="lazy"><figcaption>The selected lily/firework result also uses the same five-level stack—not a simple pasted cutout.</figcaption></figure>
+      </article>
+
+      <aside class="bells"><span>BELLS &amp; WHISTLES · COLOR</span><p>All final blends operate per RGB channel. Color is especially useful in the Oraple, Earth/Moon, sand, and lily experiments: coarse color transitions are smoothed by the mask stack while fine chromatic texture remains attached to its source. For the hybrid images, grayscale avoids conflicting color fields and makes the near/far frequency change easier to judge.</p></aside>
+    </section>
+
+    <section class="learning">
+      <p class="section-kicker">MOST IMPORTANT TAKEAWAY</p>
+      <blockquote>Filtering is not merely “making an image blurry or sharp.” It decides which structures survive at a particular viewing scale.</blockquote>
+      <p>The same Gaussian appears throughout the project, but its role changes: it suppresses noise before edge detection, defines the effective cutoff of a hybrid image, separates Laplacian bands, and turns a hard binary mask into a frequency-dependent seam. The most important practical lesson was that alignment and parameter choice matter as much as the equation. A mathematically valid blend can still fail perceptually when silhouettes, landmarks, colors, or frequency weights disagree.</p>
+    </section>
+
+    <section class="credits">
+      <div><h2>Sources &amp; authorship</h2><p>Personal work is labeled “My Photograph,” “My Photographs,” or “Self-Portraits.” Derek, Nutmeg, Taj, apple, and orange are course-provided examples. Tree-spirit and Part 2.4 creative source images were found online and supplied as reference material; their original page URLs were not retained. The compositions, alignment, filters, masks, parameter studies, and final results are my own work.</p></div>
+      <div><h2>References</h2><ul><li><a href="https://cal-cs180.github.io/fa26/hw/proj2/index.html">CS 180 Project 2 specification ↗</a></li><li>Oliva, Torralba &amp; Schyns, <em>Hybrid Images</em>, SIGGRAPH 2006.</li><li>Burt &amp; Adelson, <em>A Multiresolution Spline with Application to Image Mosaics</em>, 1983.</li></ul></div>
+    </section>
+  </main>
+  <footer><a href="../">← Back to project index</a><span>UC BERKELEY · CS 180 · FALL 2026</span></footer>
+</body>
+</html>
