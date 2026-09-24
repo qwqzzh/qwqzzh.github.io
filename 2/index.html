@@ -45,7 +45,7 @@
 
       <article class="story detail-story" id="part-1-1">
         <div class="story-copy wide-copy">
-          <p class="part-label">PART 1.1</p>
+          <p class="part-label section-number">PART 1.1</p>
           <h3>Convolutions from Scratch!</h3>
           <p>For an image I and kernel K, 2D convolution computes (I ∗ K)[y,x] = Σ<sub>i</sub>Σ<sub>j</sub>I[y−i,x−j]K[i,j]. In code, I first flip the kernel in both axes and slide it across the image. I implemented this operation using only NumPy in two ways: a literal four-loop implementation and a two-loop implementation that replaces the two inner loops with an element-wise product and <code>np.sum</code>.</p>
           <p>Both functions support rectangular kernels and return an output with the same shape as the input. For a k<sub>h</sub> × k<sub>w</sub> kernel, I pad the image by half the kernel size before sliding. Pixels outside the original image are filled with zero, matching SciPy's <code>boundary="fill", fillvalue=0</code>. This choice is simple and makes the comparison exact, although filters near the border see artificial black pixels and can therefore produce darker blur values or strong derivative responses.</p>
@@ -101,7 +101,7 @@
 
       <article class="story split-story" id="part-1-2">
         <div class="story-copy">
-          <p class="part-label">PART 1.2</p>
+          <p class="part-label section-number">PART 1.2</p>
           <h3>Finite Difference Operator</h3>
           <p>The finite-difference filters D<sub>x</sub> = [1, −1] and D<sub>y</sub> = [1, −1]<sup>T</sup> approximate the first partial derivatives of image intensity. A large response to D<sub>x</sub> means neighboring pixels change strongly along the horizontal direction, so it highlights predominantly vertical edges; D<sub>y</sub> analogously highlights horizontal edges. Because the responses are signed, opposite brightness transitions appear with opposite signs.</p>
           <p>I combine the directional derivatives into the nonnegative gradient magnitude ‖∇I‖ = √(I<sub>x</sub><sup>2</sup> + I<sub>y</sub><sup>2</sup>). This measures edge strength independently of orientation. Binarization then classifies a pixel as an edge when its magnitude exceeds a chosen threshold.</p>
@@ -113,7 +113,7 @@
 
       <article class="story" id="part-1-3">
         <div class="story-copy wide-copy">
-          <p class="part-label">PART 1.3</p>
+          <p class="part-label section-number">PART 1.3</p>
           <h3>Derivative of Gaussian (DoG) Filter</h3>
           <p>Finite differences amplify rapid pixel-to-pixel variation, so they respond not only to object boundaries but also to sensor noise and fine texture. I first convolved the cameraman image with a normalized 9 × 9 Gaussian kernel with σ = 2. The Gaussian is a low-pass filter: nearby values are averaged with smoothly decreasing weights, attenuating high-frequency noise before differentiation.</p>
           <p><strong>Comparison with Part 1.2:</strong> the unsmoothed finite-difference magnitude is thin but visibly noisy, especially in the grass and background. After Gaussian smoothing, isolated responses disappear and the important contours of the person, camera, and tripod become more continuous. The remaining edges are slightly wider and less precisely localized because smoothing spreads an intensity transition across neighboring pixels. The smoothed result therefore trades a small amount of localization for substantially better noise suppression; this also allows a lower threshold of 0.08.</p>
@@ -128,6 +128,7 @@
     </section>
 
     <section class="chapter ink" id="frequencies">
+      <header class="chapter-head applications-head"><div><span>PART 2</span></div><h2>Applications</h2></header>
       <header class="chapter-head"><div><span>PART 2.1</span></div><h2>Image “Sharpening”</h2></header>
       <div class="formula-band"><p>I<sub>sharp</sub> = I + α(I − G<sub>σ</sub> ∗ I)</p><span>unsharp masking = original + scaled high frequencies</span></div>
       <article class="story">
@@ -231,7 +232,7 @@
       <div class="blend-equation"><p>B<sub>i</sub> = M<sub>i</sub>L<sub>i</sub><sup>A</sup> + (1 − M<sub>i</sub>)L<sub>i</sub><sup>B</sup></p><span>Build a Gaussian stack for the mask, blend every Laplacian band, then sum the bands.</span></div>
 
       <article class="story oraple">
-        <div class="story-copy"><p class="part-label">THE ORAPLE · VERTICAL STEP MASK</p><h3>One hard decision, softened at every scale.</h3><p>A binary mask selects apple on the left and orange on the right. Its Gaussian stack makes the transition increasingly broad at lower frequencies: fine fruit texture stays localized, while large illumination and color differences cross the seam gently. Compared with a direct cut, the five-level result hides the boundary without globally blurring either fruit.</p></div>
+        <div class="story-copy"><p class="part-label">THE ORAPLE · VERTICAL STEP MASK</p><p>A binary mask selects apple on the left and orange on the right. Its Gaussian stack makes the transition increasingly broad at lower frequencies: fine fruit texture stays localized, while large illumination and color differences cross the seam gently. Compared with a direct cut, the five-level result hides the boundary without globally blurring either fruit.</p></div>
         <figure><img src="./media/part2_4/oraple_comparison.jpg" alt="Direct apple orange cut compared with multiresolution blend" loading="lazy"><figcaption>Direct cut versus multiresolution Oraple.</figcaption></figure>
         <figure class="full-figure"><img src="./media/part2_4/oraple_process.jpg" alt="Representative Laplacian levels in the Oraple blend" loading="lazy"><figcaption>Representative weighted Laplacian levels and collapsed stacks.</figcaption></figure>
       </article>
@@ -250,15 +251,28 @@
 
       <article class="gallery-section">
         <div class="support-head"><p class="part-label">ADDITIONAL CUSTOM BLENDS</p><h3>Straight seams and shaped masks.</h3></div>
-        <div class="result-grid">
-          <figure><img src="./media/part2_4/cat_dog.jpg" alt="Left half cat and right half dog multiresolution blend" loading="lazy"><figcaption><b>Cat + dog</b><span>Vertical mask · aligned eyes and nose</span></figcaption></figure>
-          <figure><img src="./media/part2_4/earth_moon.jpg" alt="Left half Earth and right half Moon blend" loading="lazy"><figcaption><b>Earth + Moon</b><span>Vertical mask · aligned circles</span></figcaption></figure>
-          <figure><img src="./media/part2_4/lily_firework.jpg" alt="Orange lily replacing the center of a firework" loading="lazy"><figcaption><b>Lily + firework</b><span>Irregular petal mask · selected final</span></figcaption></figure>
-        </div>
-        <div class="gallery-notes">
-          <p><strong>Cat + dog.</strong> A similarity transform aligns the eye centers and nose, then a vertical mask joins the pale backgrounds and central white markings.</p>
-          <p><strong>Earth + Moon.</strong> Estimated circle centers and radii bring both bodies to a shared 300-pixel radius before the vertical blend.</p>
-          <p><strong>Lily + firework.</strong> An HSV-derived petal mask extracts the entire bloom. A 400-pixel, gold-orange flower, wider feathered edge, and subtle central glow help it merge with the radiating trails.</p>
+        <div class="custom-blend-list">
+          <section class="custom-blend-case">
+            <div class="custom-blend-copy"><h4>Cat + dog</h4><p>A similarity transform aligns the eye centers and nose, then a vertical mask joins the pale backgrounds and central white markings.</p></div>
+            <div class="custom-blend-visuals">
+              <figure><img src="./media/part2_4/cat_dog_originals.jpg" alt="Original cat and dog input images" loading="lazy"><figcaption>Input images · cat and dog</figcaption></figure>
+              <figure><img src="./media/part2_4/cat_dog.jpg" alt="Left half cat and right half dog multiresolution blend" loading="lazy"><figcaption>Final blend · vertical mask</figcaption></figure>
+            </div>
+          </section>
+          <section class="custom-blend-case">
+            <div class="custom-blend-copy"><h4>Earth + Moon</h4><p>Estimated circle centers and radii bring both bodies to a shared 300-pixel radius before the vertical blend.</p></div>
+            <div class="custom-blend-visuals">
+              <figure><img src="./media/part2_4/earth_moon_originals.jpg" alt="Original Earth and Moon input images" loading="lazy"><figcaption>Input images · Earth and Moon</figcaption></figure>
+              <figure><img src="./media/part2_4/earth_moon.jpg" alt="Left half Earth and right half Moon blend" loading="lazy"><figcaption>Final blend · vertical mask</figcaption></figure>
+            </div>
+          </section>
+          <section class="custom-blend-case">
+            <div class="custom-blend-copy"><h4>Lily + firework</h4><p>An HSV-derived petal mask extracts the entire bloom. A 400-pixel, gold-orange flower, wider feathered edge, and subtle central glow help it merge with the radiating trails.</p></div>
+            <div class="custom-blend-visuals">
+              <figure><img src="./media/part2_4/lily_firework_originals.jpg" alt="Original lily and firework input images" loading="lazy"><figcaption>Input images · lily and firework</figcaption></figure>
+              <figure><img src="./media/part2_4/lily_firework.jpg" alt="Orange lily replacing the center of a firework" loading="lazy"><figcaption>Final blend · irregular petal mask</figcaption></figure>
+            </div>
+          </section>
         </div>
         <figure class="full-figure"><img src="./media/part2_4/lily_firework_process.jpg" alt="Laplacian process for blending a lily with a firework" loading="lazy"><figcaption>The selected lily/firework result also uses the same five-level stack—not a simple pasted cutout.</figcaption></figure>
       </article>
