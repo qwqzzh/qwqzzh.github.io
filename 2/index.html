@@ -226,7 +226,7 @@
       <div class="source-tag course">APPLE + ORANGE · COURSE-PROVIDED IMAGES</div>
       <figure class="full-figure"><img src="./media/part2_3/gaussian_stacks.jpg" alt="Five-level Gaussian stacks for apple and orange" loading="lazy"><figcaption>Gaussian stacks: progressively smoother, never smaller.</figcaption></figure>
       <figure class="full-figure"><img src="./media/part2_3/laplacian_stacks.jpg" alt="Five-level Laplacian stacks for apple and orange" loading="lazy"><figcaption>Laplacian stacks isolate bands of detail plus a low-frequency residual.</figcaption></figure>
-      <figure class="figure-342"><img src="./media/part2_3/figure_3_42_recreation.jpg" alt="Recreation of Figure 3.42 panels a through l" loading="lazy"><figcaption>Recreation of Figure 3.42 (a)–(l): masked apple contribution, masked orange contribution, their sum at three scales, collapsed contributions, and the final Oraple.</figcaption></figure>
+      <figure class="figure-342"><img src="./media/part2_3/figure_3_42_recreation.jpg" alt="Recreation of Figure 3.42 panels a through l" loading="lazy"><figcaption>Frequency-domain interpretation of Figure 3.42 (a)–(l): the masked apple and orange contributions at high, medium, and low frequencies, followed by their collapsed sums. Part 2.4 below focuses instead on how the mask itself creates a seamless transition.</figcaption></figure>
     </section>
 
     <section class="chapter ember" id="blending">
@@ -235,8 +235,9 @@
 
       <article class="story oraple">
         <div class="story-copy"><p class="part-label">THE ORAPLE · VERTICAL STEP MASK</p><p>A binary mask selects apple on the left and orange on the right. Its Gaussian stack makes the transition increasingly broad at lower frequencies: fine fruit texture stays localized, while large illumination and color differences cross the seam gently. Compared with a direct cut, the five-level result hides the boundary without globally blurring either fruit.</p></div>
-        <figure><img src="./media/part2_4/oraple_comparison.jpg" alt="Direct apple orange cut compared with multiresolution blend" loading="lazy"><figcaption>Direct cut versus multiresolution Oraple.</figcaption></figure>
-        <figure class="full-figure"><img src="./media/part2_4/oraple_process.jpg" alt="Representative Laplacian levels in the Oraple blend" loading="lazy"><figcaption>Representative weighted Laplacian levels and collapsed stacks.</figcaption></figure>
+        <figure><img src="./media/part2_4/oraple_inputs_mask.jpg" alt="Apple, orange, and the vertical binary mask" loading="lazy"><figcaption>Course-provided inputs and the vertical step mask.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part2_4/oraple_mask_stack.jpg" alt="Gaussian stack of the vertical Oraple mask" loading="lazy"><figcaption>Mask Gaussian stack: the seam is sharp for fine bands and progressively wider for coarse bands.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/part2_4/oraple_comparison.jpg" alt="Direct apple orange cut compared with multiresolution blend" loading="lazy"><figcaption>Outcome comparison: a hard center cut versus the final five-level multiresolution Oraple.</figcaption></figure>
       </article>
 
       <article class="blend-feature">
