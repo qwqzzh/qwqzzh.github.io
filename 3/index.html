@@ -48,7 +48,6 @@
           <p class="part-label section-number">SETUP</p>
           <h3>A pretrained flow model, no training</h3>
           <p>Part A uses the pretrained text-to-image model <code>PixNerd-XXL-P16-T2I</code>, which generates 512 × 512 images, and implements the sampling procedures around it. Time runs from noise to data: x<sub>t</sub> = (1 − t)ε + t·x<sub>1</sub> with ε ∼ N(0, I), so t = 0 is pure noise and t = 1 is a clean image. The network predicts the velocity v<sub>θ</sub>(x<sub>t</sub>, t, c) ≈ x<sub>1</sub> − ε for an image x<sub>t</sub>, a time t and a text condition c. Until Section 3 the condition is the generic prompt “a high quality photo”. Sections 1.1–1.5 use one photograph of my own (not the course's Campanile), center-cropped to 512 × 512 with RGB values in [−1, 1]. Every result below comes from the submitted notebook.</p>
-          <div class="run-note"><span>Tesla T4 (Colab)</span><span>PyTorch 2.11.0+cu130 · float32</span><span>seed 180 · h = 0.02 · w = 7</span></div>
         </div>
       </article>
 
@@ -302,7 +301,6 @@ def make_hybrids(noise, condition_a, condition_b, predict_velocity, w=7, step_si
           <p class="part-label section-number">SETUP</p>
           <h3>MNIST, a small UNet and one training run</h3>
           <p>Part B trains everything from scratch on MNIST (60,000 training and 10,000 test digits, pixels in [0, 1]). All Part B results come from one run of the Part B notebook (seed 180, top to bottom). Noise is drawn fresh for every batch, so no epoch sees the same noisy image twice.</p>
-          <div class="run-note"><span>NVIDIA GeForce RTX 4070 Laptop GPU</span><span>PyTorch 2.4.1+cu121 · TF32</span><span>whole notebook: 26.6 min</span></div>
         </div>
       </article>
 
@@ -542,7 +540,7 @@ def class_fm_sample(unet: ClassConditionalUNet, c: torch.Tensor, img_wh: tuple, 
     </section>
 
     <section class="credits">
-      <div><h2>Sources &amp; authorship</h2><ul><li><b>Provided by CS 180:</b> the starter notebooks, the PixNerd model and the Campanile image (Part A); the assignment figures and algorithms (Part B). MNIST: LeCun, Cortes &amp; Burges.</li><li><b>My own:</b> the Section 1 image (also my_image_1), my_image_2 and the two drawings in Section 3.1.</li><li><b>Found online:</b> the web image in Section 3.1, a watercolor landscape (source and artist not recorded).</li></ul></div>
+      <div><h2>Sources &amp; authorship</h2><ul><li><b>Provided by CS 180:</b> the starter notebooks, the PixNerd model and the Campanile image (Part A); the assignment figures and algorithms (Part B). MNIST: LeCun, Cortes &amp; Burges.</li><li><b>My own:</b> the Section 1 image (also my_image_1), my_image_2 and the two drawings in Section 3.1.</li><li><b>Found online:</b> the web image in Section 3.1, a watercolor landscape.</li></ul></div>
       <div><h2>References</h2><ul>
         <li><a href="https://cal-cs180.github.io/fa26/hw/proj3-flow/parta.html">CS 180 Project 3, Part A specification ↗</a></li>
         <li><a href="https://cal-cs180.github.io/fa26/hw/proj3-flow/partb.html">CS 180 Project 3, Part B specification ↗</a></li>
