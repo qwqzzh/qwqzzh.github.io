@@ -13,7 +13,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">← ALL PROJECTS</a>
-    <nav aria-label="Project sections"><a href="#a-1">A.1 Photos</a><a href="#a-2">A.2 Homography</a><a href="#a-3">A.3 Warp</a><a href="#a-4">A.4 Mosaics</a><a href="#takeaway">Takeaway</a></nav>
+    <nav aria-label="Project sections"><a href="#a-1">A.1 Photos</a><a href="#a-2">A.2 Homography</a><a href="#a-3">A.3 Warp</a><a href="#a-4">A.4 Mosaics</a></nav>
   </header>
 
   <main>
@@ -48,7 +48,7 @@
         <div class="story-copy wide-copy">
           <p class="part-label section-number">PART A · 1</p>
           <h3>Shooting the pictures</h3>
-          <p>A homography can only map one photo onto another if both were taken from the same center of projection (or if the scene is a plane). So for each mosaic I stood in one spot and turned the phone about its lens between shots, leaving roughly 40–70% overlap between neighbors. I shot four sets on and around the Berkeley campus: three photos of a white campus building (set 1), two of Giannini Hall (set 2), two of the crosswalk at Le Conte Avenue (set 3) and three of a street with autumn trees (set 4). For rectification I photographed two rectangular signs at a steep angle. Every photo is resized so that its long side is at most 1600 px before any processing.</p>
+          <p>A homography can only map one photo onto another if both were taken from the same center of projection (or if the scene is a plane). So for each mosaic I stood in one spot and turned the phone about its lens between shots, leaving roughly 40–70% overlap between neighbors. I shot four sets on and around the Berkeley campus: three photos of a white campus building (set 1), two of a hall (set 2), two of a crosswalk (set 3) and three of a street with autumn trees (set 4). For rectification I photographed two rectangular signs at a steep angle. Every photo is resized so that its long side is at most 1600 px before any processing.</p>
         </div>
         <div class="set-block">
           <h4>Set 1 · white building · 3 photos</h4>
@@ -59,14 +59,14 @@
           </div>
         </div>
         <div class="set-block">
-          <h4>Set 2 · Giannini Hall · 2 photos</h4>
+          <h4>Set 2 · Hall · 2 photos</h4>
           <div class="figure-grid two">
             <figure><img src="./media/set2/src_1.jpg" alt="Set 2 photo 1" loading="lazy"><figcaption>1.jpg (left)</figcaption></figure>
             <figure><img src="./media/set2/src_2.jpg" alt="Set 2 photo 2" loading="lazy"><figcaption>2.jpg (right, reference)</figcaption></figure>
           </div>
         </div>
         <div class="set-block">
-          <h4>Set 3 · crosswalk at Le Conte Ave · 2 photos</h4>
+          <h4>Set 3 · Crosswalk · 2 photos</h4>
           <div class="figure-grid two">
             <figure><img src="./media/set3/src_1.jpg" alt="Set 3 photo 1" loading="lazy"><figcaption>1.jpg (left)</figcaption></figure>
             <figure><img src="./media/set3/src_2.jpg" alt="Set 3 photo 2" loading="lazy"><figcaption>2.jpg (right, reference)</figcaption></figure>
@@ -109,7 +109,7 @@ def computeH(im1_pts, im2_pts):
     h, *_ = np.linalg.lstsq(A, b, rcond=None)
     H = np.linalg.inv(T2) @ np.append(h, 1.0).reshape(3, 3) @ T1
     return H / H[2, 2]</code></pre></div>
-        <figure class="full-figure"><img src="./media/set2/corr_1_to_2.jpg" alt="Fifteen numbered correspondences between the two Giannini Hall photos" loading="lazy"><figcaption>Set 2 · 15 correspondences (same number = same point). RMS reprojection error 0.85 px, max 1.28 px.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/set2/corr_1_to_2.jpg" alt="Fifteen numbered correspondences between the two hall photos" loading="lazy"><figcaption>Set 2 · 15 correspondences (same number = same point). RMS reprojection error 0.85 px, max 1.28 px.</figcaption></figure>
         <div class="figure-grid two">
           <figure><img src="./media/set1/corr_1_to_2.jpg" alt="Correspondences between set 1 photos 1 and 2" loading="lazy"><figcaption>Set 1 · 1 → 2 · 13 pairs · RMS 1.11 px</figcaption></figure>
           <figure><img src="./media/set1/corr_2_to_3.jpg" alt="Correspondences between set 1 photos 2 and 3" loading="lazy"><figcaption>Set 1 · 2 → 3 · 14 pairs · RMS 1.24 px</figcaption></figure>
@@ -296,8 +296,8 @@ def _sample_bilinear(im, sx, sy, front):
 
         <div class="story-copy wide-copy"><h3 class="sub">The mosaics</h3><p>All four mosaics use two-band blending. The source photos of each set are shown in A.1.</p></div>
         <figure class="full-figure"><img src="./media/set1/mosaic_twoband.jpg" alt="Set 1 mosaic of the white building" loading="lazy"><figcaption>Mosaic 1 · white building · 3 photos · RMS 1.11 / 1.24 px. The building's cornice and windows continue straight across both seams.</figcaption></figure>
-        <figure class="full-figure"><img src="./media/set2/mosaic_twoband.jpg" alt="Set 2 mosaic of Giannini Hall" loading="lazy"><figcaption>Mosaic 2 · Giannini Hall · 2 photos · RMS 0.85 px. The inscription along the frieze reads continuously across the overlap.</figcaption></figure>
-        <figure class="full-figure"><img src="./media/set3/mosaic_twoband.jpg" alt="Set 3 mosaic of the crosswalk at Le Conte Avenue" loading="lazy"><figcaption>Mosaic 3 · crosswalk at Le Conte Ave · 2 photos · RMS 4.07 px (parallax, see below). The faint dark disc on the crosswalk is a car that drove through between the two shots.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/set2/mosaic_twoband.jpg" alt="Set 2 mosaic of the hall" loading="lazy"><figcaption>Mosaic 2 · Hall · 2 photos · RMS 0.85 px. The inscription along the frieze reads continuously across the overlap.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/set3/mosaic_twoband.jpg" alt="Set 3 mosaic of the crosswalk" loading="lazy"><figcaption>Mosaic 3 · Crosswalk · 2 photos · RMS 4.07 px (parallax, see below). The faint dark disc on the crosswalk is a car that drove through between the two shots.</figcaption></figure>
         <figure class="full-figure"><img src="./media/set4/mosaic_twoband.jpg" alt="Set 4 mosaic of a street with autumn trees" loading="lazy"><figcaption>Mosaic 4 · street with autumn trees · 3 photos · RMS 1.19 / 1.52 px.</figcaption></figure>
 
         <div class="story-copy wide-copy">
@@ -317,13 +317,6 @@ def _sample_bilinear(im, sx, sy, front):
         </div>
       </article>
     </section>
-
-    <section class="learning" id="takeaway">
-      <p class="section-kicker">MOST IMPORTANT TAKEAWAY</p>
-      <blockquote>A homography is only as good as the camera motion: rotate about the lens and eight numbers align everything; move the camera and no blending can fully hide it.</blockquote>
-      <p>The math of Part A is small: a linear least-squares problem and a resampling loop. Most of the effort went into the data. Correspondences spread over the whole overlap gave sub-2-pixel fits. The reprojection error caught the one click on a nearby lamp. And the crosswalk set showed what happens when the camera translates: near and far points want different homographies. Two-band blending covers small residuals and moving leaves, but it cannot remove a real geometric conflict. That has to be fixed when taking the photos.</p>
-    </section>
-
   </main>
   <footer><a href="../">← Back to project index</a><span>UC BERKELEY · CS 180 · FALL 2026</span></footer>
 </body>
