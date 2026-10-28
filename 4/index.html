@@ -103,7 +103,7 @@
     return A, b
 
 def computeH(im1_pts, im2_pts):
-    T1, T2 = normalizing_transform(im1_pts), normalizing_transform(im2_pts)
+    T1, T2 = _normalizing_transform(im1_pts), _normalizing_transform(im2_pts)
     A, b = homography_system(apply_homography(T1, im1_pts), apply_homography(T2, im2_pts))
     h, *_ = np.linalg.lstsq(A, b, rcond=None)
     H = np.linalg.inv(T2) @ np.append(h, 1.0).reshape(3, 3) @ T1
@@ -112,7 +112,10 @@ def computeH(im1_pts, im2_pts):
         <div class="figure-grid two">
           <figure><img src="./media/set1/corr_1_to_2.jpg" alt="Correspondences between set 1 photos 1 and 2" loading="lazy"><figcaption>Set 1 · 1 → 2 · 13 pairs · RMS 1.11 px</figcaption></figure>
           <figure><img src="./media/set1/corr_2_to_3.jpg" alt="Correspondences between set 1 photos 2 and 3" loading="lazy"><figcaption>Set 1 · 2 → 3 · 14 pairs · RMS 1.24 px</figcaption></figure>
+          <figure><img src="./media/set4/corr_1_to_2.jpg" alt="Correspondences between set 4 photos 1 and 2" loading="lazy"><figcaption>Set 4 · 1 → 2 · 14 pairs · RMS 1.19 px</figcaption></figure>
+          <figure><img src="./media/set4/corr_2_to_3.jpg" alt="Correspondences between set 4 photos 2 and 3" loading="lazy"><figcaption>Set 4 · 2 → 3 · 13 pairs · RMS 1.52 px</figcaption></figure>
         </div>
+        <figure class="full-figure"><img src="./media/set3/corr_1_to_2.jpg" alt="Thirteen numbered correspondences between the two crosswalk photos, on far houses and poles and on the nearby ground and signal" loading="lazy"><figcaption>Set 3 · 13 pairs · RMS 4.07 px. Points 1, 2, 7, 8, 9, 12 and 13 lie far away (houses, poles, traffic light); the others lie on the ground and the pedestrian signal near the camera (see the parallax discussion in A.4).</figcaption></figure>
         <div class="story-copy wide-copy">
           <p><b>The system for set 2.</b> Below is the full system A h = b built from the 15 clicked pairs of set 2 (in pixels of the 1600 × 1200 working images; rows 2k and 2k+1 come from pair k), and the least-squares solution. This is the raw system — the solver applies the normalization described above to it.</p>
         </div>
@@ -218,12 +221,15 @@ def _sample_bilinear(im, sx, sy, front):
         <div class="story-copy wide-copy">
           <p><b>Rectification.</b> To test the warps, I make a slanted rectangle look fronto-parallel. I click its four corners (top-left, top-right, bottom-right, bottom-left) and map them to an axis-aligned rectangle. With exactly four points the system is 8 × 8 and solved exactly (reprojection error 0). The rectangle's width is the average of the top and bottom edge lengths. Its height depends on what I know about the object. The recycling poster is a tall portrait poster, about 1.2 times taller than a letter sheet (8.5 × 11) of the same width. That gives a width-to-height ratio of about 0.64, so its height is width / 0.64. Averaging the left and right edges instead would give 0.92, because looking down at the sign foreshortens its vertical edges. That height would be about 30% too short, and the recycling symbol and the text would come out squashed. The PSR sign is a long landscape panel, with a width-to-height ratio of about 1.8, so its height is width / 1.8. Averaging its edges would give only 1.11, because the sign recedes steeply to the right, and the letters would come out visibly condensed. Everything off the sign's plane (trees, grass, posts) is stretched, as expected, because the homography is only correct for that plane.</p>
         </div>
-        <div class="figure-grid two">
+        <div class="figure-grid three">
           <figure><img src="./media/rectify/psr_sign_input.jpg" alt="Pacific School of Religion sign photographed at an angle with the four clicked corners marked" loading="lazy"><figcaption>Input · PSR sign · clicked corners</figcaption></figure>
-          <figure><img src="./media/rectify/psr_sign_rectified.jpg" alt="The PSR sign rectified to a fronto-parallel rectangle" loading="lazy"><figcaption>Rectified (bilinear)</figcaption></figure>
+          <figure><a href="./media/rectify/psr_sign_rectified_nearest.jpg"><img src="./media/rectify/psr_sign_rectified_nearest.jpg" alt="The PSR sign rectified with nearest-neighbor sampling" loading="lazy"></a><figcaption>Rectified · nearest neighbor</figcaption></figure>
+          <figure><a href="./media/rectify/psr_sign_rectified_bilinear.jpg"><img src="./media/rectify/psr_sign_rectified_bilinear.jpg" alt="The PSR sign rectified with bilinear sampling" loading="lazy"></a><figcaption>Rectified · bilinear</figcaption></figure>
           <figure><img src="./media/rectify/recycle_sign_input.jpg" alt="Berkeley recycling sign on a trash compactor photographed from above with the four clicked corners marked" loading="lazy"><figcaption>Input · Berkeley recycling sign · clicked corners</figcaption></figure>
-          <figure><img src="./media/rectify/recycle_sign_rectified.jpg" alt="The recycling sign rectified to a fronto-parallel rectangle" loading="lazy"><figcaption>Rectified (bilinear)</figcaption></figure>
+          <figure><a href="./media/rectify/recycle_sign_rectified_nearest.jpg"><img src="./media/rectify/recycle_sign_rectified_nearest.jpg" alt="The recycling sign rectified with nearest-neighbor sampling" loading="lazy"></a><figcaption>Rectified · nearest neighbor</figcaption></figure>
+          <figure><a href="./media/rectify/recycle_sign_rectified_bilinear.jpg"><img src="./media/rectify/recycle_sign_rectified_bilinear.jpg" alt="The recycling sign rectified with bilinear sampling" loading="lazy"></a><figcaption>Rectified · bilinear</figcaption></figure>
         </div>
+        <div class="story-copy wide-copy"><p class="table-note">The rectified images are stored at full resolution; click one to open it and zoom in. At this size the two look alike, and the difference is in the pixels (below).</p></div>
         <div class="story-copy wide-copy">
           <p><b>Nearest neighbor vs. bilinear.</b> Below are 110 × 110 px crops of each rectified sign, enlarged 4× with pixel replication so single pixels are visible. Each crop is taken where the sign has the most edges. The rectification enlarges the far side of each sign, so one source pixel is spread over several output pixels. Nearest neighbor copies whole source pixels, so slanted strokes become staircases (the “W” of “We”, the serifs, the edges of “GREEN”) and thin strokes change thickness from letter to letter. Bilinear interpolation varies smoothly between source pixels, so edges stay straight and anti-aliased. Its result is slightly softer, but it never invents structure.</p>
         </div>
