@@ -1,2 +1,330 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project 4 · CS 180</title><link rel="stylesheet" href="../assets/placeholder.css"></head><body><main><p>CS 180 · PROJECT 04</p><h1>(Auto)stitching<br>and Photo Mosaics</h1><p class="note">Project page reserved for future work.</p><a href="../">← Back to portfolio</a></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CS 180 Project 4A: homographies from clicked correspondences, inverse warping with nearest-neighbor and bilinear sampling, image rectification and blended photo mosaics.">
+  <title>Project 4 · Stitching Photo Mosaics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./project.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../">← ALL PROJECTS</a>
+    <nav aria-label="Project sections"><a href="#a-1">A.1 Photos</a><a href="#a-2">A.2 Homography</a><a href="#a-3">A.3 Warp</a><a href="#a-4">A.4 Mosaics</a><a href="#takeaway">Takeaway</a></nav>
+  </header>
 
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">CS 180 · PROJECT 4 · FALL 2026</p>
+        <h1>Photo Mosaics<br><em>by hand</em></h1>
+        <p class="lede">Part A of [Auto]Stitching: photos taken while rotating about the camera's center, homographies recovered from clicked correspondences by least squares, inverse warping written from scratch, rectified signs, and four blended mosaics around the Berkeley campus.</p>
+        <div class="hero-meta"><span><b>04</b> mosaics</span><span><b>02</b> rectifications</span><span><b>8</b> unknowns per H</span><span><b>0.85 px</b> best RMS fit</span></div>
+      </div>
+      <figure class="hero-image">
+        <img src="./media/set4/mosaic_twoband.jpg" alt="Three-photo mosaic of a street with red and yellow trees, a utility pole and parked cars">
+        <figcaption><span>SET 4 · THREE PHOTOS · TWO-BAND BLEND</span><span>REFERENCE = MIDDLE PHOTO</span></figcaption>
+      </figure>
+    </section>
+
+    <section class="overview">
+      <p class="section-kicker">PROJECT MAP</p>
+      <div class="overview-grid four">
+        <article><span>A.1</span><h2>Shoot</h2><p>Turn the phone about its lens, so every photo sees the scene from one center of projection.</p></article>
+        <article><span>A.2</span><h2>Solve</h2><p>Click matching points and solve a 2n × 8 least-squares system for the homography H.</p></article>
+        <article><span>A.3</span><h2>Warp</h2><p>Inverse-warp with nearest-neighbor or bilinear sampling and use it to rectify planar objects.</p></article>
+        <article><span>A.4</span><h2>Blend</h2><p>Warp every photo into the middle photo's frame and blend the overlaps without seams or ghosts.</p></article>
+      </div>
+    </section>
+
+    <!-- ============================== A.1 ============================== -->
+    <section class="chapter light" id="part-a">
+      <header class="chapter-head"><div><span>PART A</span></div><h2>Image Warping and Mosaicing</h2></header>
+
+      <article class="story" id="a-1">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART A · 1</p>
+          <h3>Shooting the pictures</h3>
+          <p>A homography can only map one photo onto another if both were taken from the same center of projection (or if the scene is a plane). So for each mosaic I stood in one spot and turned the phone about its lens between shots, leaving roughly 40–70% overlap between neighbors. I shot four sets on and around the Berkeley campus: three photos of a white campus building (set 1), two of Giannini Hall (set 2), two of the crosswalk at Le Conte Avenue (set 3) and three of a street with autumn trees (set 4). For rectification I photographed two rectangular signs at a steep angle. Every photo is resized so that its long side is at most 1600 px before any processing.</p>
+        </div>
+        <div class="set-block">
+          <h4>Set 1 · white building · 3 photos</h4>
+          <div class="figure-grid three">
+            <figure><img src="./media/set1/src_1.jpg" alt="Set 1 photo 1" loading="lazy"><figcaption>1.jpg (left)</figcaption></figure>
+            <figure><img src="./media/set1/src_2.jpg" alt="Set 1 photo 2" loading="lazy"><figcaption>2.jpg (middle, reference)</figcaption></figure>
+            <figure><img src="./media/set1/src_3.jpg" alt="Set 1 photo 3" loading="lazy"><figcaption>3.jpg (right)</figcaption></figure>
+          </div>
+        </div>
+        <div class="set-block">
+          <h4>Set 2 · Giannini Hall · 2 photos</h4>
+          <div class="figure-grid two">
+            <figure><img src="./media/set2/src_1.jpg" alt="Set 2 photo 1" loading="lazy"><figcaption>1.jpg (left)</figcaption></figure>
+            <figure><img src="./media/set2/src_2.jpg" alt="Set 2 photo 2" loading="lazy"><figcaption>2.jpg (right, reference)</figcaption></figure>
+          </div>
+        </div>
+        <div class="set-block">
+          <h4>Set 3 · crosswalk at Le Conte Ave · 2 photos</h4>
+          <div class="figure-grid two">
+            <figure><img src="./media/set3/src_1.jpg" alt="Set 3 photo 1" loading="lazy"><figcaption>1.jpg (left)</figcaption></figure>
+            <figure><img src="./media/set3/src_2.jpg" alt="Set 3 photo 2" loading="lazy"><figcaption>2.jpg (right, reference)</figcaption></figure>
+          </div>
+        </div>
+        <div class="set-block">
+          <h4>Set 4 · street with autumn trees · 3 photos</h4>
+          <div class="figure-grid three">
+            <figure><img src="./media/set4/src_1.jpg" alt="Set 4 photo 1" loading="lazy"><figcaption>1.jpg (left)</figcaption></figure>
+            <figure><img src="./media/set4/src_2.jpg" alt="Set 4 photo 2" loading="lazy"><figcaption>2.jpg (middle, reference)</figcaption></figure>
+            <figure><img src="./media/set4/src_3.jpg" alt="Set 4 photo 3" loading="lazy"><figcaption>3.jpg (right)</figcaption></figure>
+          </div>
+        </div>
+      </article>
+
+      <!-- ============================== A.2 ============================== -->
+      <article class="story" id="a-2">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART A · 2</p>
+          <h3>Recovering homographies</h3>
+          <p>A homography maps a point p = (x, y, 1)ᵀ of one image to p′ ∼ Hp in the other, where H is a 3 × 3 matrix defined up to scale. Fixing h<sub>33</sub> = 1 leaves 8 unknowns. Writing out the division by the third coordinate,</p>
+          <p class="equation-block">x′ = (h<sub>11</sub>x + h<sub>12</sub>y + h<sub>13</sub>) / (h<sub>31</sub>x + h<sub>32</sub>y + 1),&nbsp;&nbsp; y′ = (h<sub>21</sub>x + h<sub>22</sub>y + h<sub>23</sub>) / (h<sub>31</sub>x + h<sub>32</sub>y + 1),</p>
+          <p>and multiplying out the denominator gives two equations per correspondence that are <em>linear</em> in h = [h<sub>11</sub> … h<sub>32</sub>]ᵀ:</p>
+          <p class="equation-block">[x  y  1  0  0  0  −x·x′  −y·x′] · h = x′<br>[0  0  0  x  y  1  −x·y′  −y·y′] · h = y′</p>
+          <p>Four correspondences determine H exactly; with clicked points (which are off by a pixel or two) I use 13–15 well-spread pairs per image pair and solve the overdetermined 2n × 8 system A h = b by least squares (<code>np.linalg.lstsq</code>). Before solving, both point sets are normalized (Hartley: centroid at the origin, mean distance √2), and H is mapped back afterwards. This does not change the answer for exact data, but it keeps the columns of A on comparable scales, so the solve is much less sensitive to click noise than with raw pixel coordinates, whose products x·x′ reach 10<sup>6</sup>.</p>
+          <p>I clicked the points with a small matplotlib tool (<code>pick_points.py</code>) on sharp corners — window corners, roof edges, sign corners, pole tops — spread over the whole overlap. The reprojection error ‖H(p) − p′‖ tells whether a click is wrong: in set 1 one pair on the base of a nearby lamp post had a much larger error than the rest, because the lamp is much closer to the camera than the building (see the parallax discussion in A.4), so I removed it.</p>
+        </div>
+        <div class="full-figure"><pre class="code"><code>def homography_system(im1_pts, im2_pts):
+    x, y, xp, yp = im1_pts[:, 0], im1_pts[:, 1], im2_pts[:, 0], im2_pts[:, 1]
+    zeros, ones = np.zeros_like(x), np.ones_like(x)
+    A = np.empty((2 * len(x), 8))
+    A[0::2] = np.stack([x, y, ones, zeros, zeros, zeros, -x * xp, -y * xp], axis=1)
+    A[1::2] = np.stack([zeros, zeros, zeros, x, y, ones, -x * yp, -y * yp], axis=1)
+    b = np.empty(2 * len(x)); b[0::2], b[1::2] = xp, yp
+    return A, b
+
+def computeH(im1_pts, im2_pts):
+    T1, T2 = normalizing_transform(im1_pts), normalizing_transform(im2_pts)
+    A, b = homography_system(apply_homography(T1, im1_pts), apply_homography(T2, im2_pts))
+    h, *_ = np.linalg.lstsq(A, b, rcond=None)
+    H = np.linalg.inv(T2) @ np.append(h, 1.0).reshape(3, 3) @ T1
+    return H / H[2, 2]</code></pre></div>
+        <figure class="full-figure"><img src="./media/set2/corr_1_to_2.jpg" alt="Fifteen numbered correspondences between the two Giannini Hall photos" loading="lazy"><figcaption>Set 2 · 15 correspondences (same number = same point). RMS reprojection error 0.85 px, max 1.28 px.</figcaption></figure>
+        <div class="figure-grid two">
+          <figure><img src="./media/set1/corr_1_to_2.jpg" alt="Correspondences between set 1 photos 1 and 2" loading="lazy"><figcaption>Set 1 · 1 → 2 · 13 pairs · RMS 1.11 px</figcaption></figure>
+          <figure><img src="./media/set1/corr_2_to_3.jpg" alt="Correspondences between set 1 photos 2 and 3" loading="lazy"><figcaption>Set 1 · 2 → 3 · 14 pairs · RMS 1.24 px</figcaption></figure>
+        </div>
+        <div class="story-copy wide-copy">
+          <p><b>The system for set 2.</b> Below is the full system A h = b built from the 15 clicked pairs of set 2 (in pixels of the 1600 × 1200 working images; rows 2k and 2k+1 come from pair k), and the least-squares solution. This is the raw system — the solver applies the normalization described above to it.</p>
+        </div>
+        <div class="full-figure"><pre class="code system">A (30 × 8) | b
+          h11        h12        h13        h21        h22        h23        h31        h32   |        b
+[       592.4      239.6        1.0        0.0        0.0        0.0   -25058.5   -10134.2 ] |     42.3
+[         0.0        0.0        0.0      592.4      239.6        1.0  -119691.9   -48406.1 ] |    202.1
+[       723.5      265.5        1.0        0.0        0.0        0.0  -143151.2   -52537.8 ] |    197.8
+[         0.0        0.0        0.0      723.5      265.5        1.0  -181418.3   -66582.2 ] |    250.7
+[      1551.6      828.9        1.0        0.0        0.0        0.0 -1501607.6  -802177.7 ] |    967.8
+[         0.0        0.0        0.0     1551.6      828.9        1.0 -1338558.8  -715074.9 ] |    862.7
+[       608.5      803.6        1.0        0.0        0.0        0.0    -9472.8   -12509.4 ] |     15.6
+[         0.0        0.0        0.0      608.5      803.6        1.0  -505205.0  -667154.0 ] |    830.2
+[       688.4      864.1        1.0        0.0        0.0        0.0   -76159.9   -95598.7 ] |    110.6
+[         0.0        0.0        0.0      688.4      864.1        1.0  -617896.6  -775606.4 ] |    897.6
+[       918.1      609.8        1.0        0.0        0.0        0.0  -359701.0  -238905.5 ] |    391.8
+[         0.0        0.0        0.0      918.1      609.8        1.0  -580788.4  -385746.8 ] |    632.6
+[      1026.9      758.7        1.0        0.0        0.0        0.0  -509353.9  -376319.1 ] |    496.0
+[         0.0        0.0        0.0     1026.9      758.7        1.0  -810054.7  -598481.9 ] |    788.8
+[      1436.2      585.8        1.0        0.0        0.0        0.0 -1268309.9  -517314.8 ] |    883.1
+[         0.0        0.0        0.0     1436.2      585.8        1.0  -915394.6  -373368.7 ] |    637.4
+[      1282.2      535.5        1.0        0.0        0.0        0.0  -964879.8  -402948.5 ] |    752.5
+[         0.0        0.0        0.0     1282.2      535.5        1.0  -746516.8  -311756.8 ] |    582.2
+[      1167.7      228.9        1.0        0.0        0.0        0.0  -773841.9  -151685.6 ] |    662.7
+[         0.0        0.0        0.0     1167.7      228.9        1.0  -325039.5   -63713.1 ] |    278.4
+[      1302.7      282.4        1.0        0.0        0.0        0.0 -1020863.6  -221320.1 ] |    783.7
+[         0.0        0.0        0.0     1302.7      282.4        1.0  -452490.0   -98098.4 ] |    347.4
+[      1234.0      611.0        1.0        0.0        0.0        0.0  -870349.6  -430996.1 ] |    705.3
+[         0.0        0.0        0.0     1234.0      611.0        1.0  -803024.1  -397656.7 ] |    650.8
+[       706.7      402.1        1.0        0.0        0.0        0.0  -118915.9   -67651.4 ] |    168.3
+[         0.0        0.0        0.0      706.7      402.1        1.0  -278595.1  -158493.1 ] |    394.2
+[       933.6      271.9        1.0        0.0        0.0        0.0  -400263.8  -116593.1 ] |    428.7
+[         0.0        0.0        0.0      933.6      271.9        1.0  -268768.6   -78289.8 ] |    287.9
+[      1552.8      270.4        1.0        0.0        0.0        0.0 -1543534.2  -268780.6 ] |    994.1
+[         0.0        0.0        0.0     1552.8      270.4        1.0  -563967.6   -98205.5 ] |    363.2
+
+H =
+[[ 1.470090e+00 -9.620283e-02 -7.979988e+02]
+ [ 2.692171e-01  1.281611e+00 -2.307644e+02]
+ [ 3.074053e-04 -3.365877e-05  1.000000e+00]]
+
+reprojection error (px): mean 0.787, max 1.282, RMS 0.851</pre></div>
+        <div class="story-copy wide-copy">
+          <p><b>All recovered homographies.</b> Each H maps the left photo of a pair into the right one. The matrices of neighboring pairs look alike because I turned the phone by a similar angle each time; h<sub>13</sub> ≈ −450 to −820 px is the horizontal shift, and h<sub>31</sub> ≈ 1.7–3.4·10<sup>−4</sup> is the perspective term that makes the warped photo a trapezoid instead of a shifted rectangle.</p>
+        </div>
+        <div class="matrix-grid">
+          <div><h4>Set 1 · 1 → 2 · 13 pairs · RMS 1.11 px</h4><pre class="code">[[ 1.3783e+00 -7.0414e-02 -4.5529e+02]
+ [ 3.1700e-01  1.2296e+00 -2.2406e+02]
+ [ 3.4246e-04 -1.5522e-05  1.0000e+00]]</pre></div>
+          <div><h4>Set 1 · 2 → 3 · 14 pairs · RMS 1.24 px</h4><pre class="code">[[ 1.3672e+00 -5.9814e-02 -4.7027e+02]
+ [ 2.9807e-01  1.2404e+00 -2.2815e+02]
+ [ 3.2249e-04  2.4773e-06  1.0000e+00]]</pre></div>
+          <div><h4>Set 2 · 1 → 2 · 15 pairs · RMS 0.85 px</h4><pre class="code">[[ 1.4701e+00 -9.6203e-02 -7.9800e+02]
+ [ 2.6922e-01  1.2816e+00 -2.3076e+02]
+ [ 3.0741e-04 -3.3659e-05  1.0000e+00]]</pre></div>
+          <div><h4>Set 3 · 1 → 2 · 13 pairs · RMS 4.07 px</h4><pre class="code">[[ 1.4623e+00 -7.1655e-02 -7.7179e+02]
+ [ 2.0993e-01  1.2625e+00 -1.5332e+02]
+ [ 3.1690e-04 -5.6823e-05  1.0000e+00]]</pre></div>
+          <div><h4>Set 4 · 1 → 2 · 14 pairs · RMS 1.19 px</h4><pre class="code">[[ 1.3746e+00 -3.8195e-02 -8.2133e+02]
+ [ 1.2985e-01  1.2605e+00 -1.2620e+02]
+ [ 2.0502e-04 -2.5872e-05  1.0000e+00]]</pre></div>
+          <div><h4>Set 4 · 2 → 3 · 13 pairs · RMS 1.52 px</h4><pre class="code">[[ 1.2701e+00 -2.7118e-02 -7.3277e+02]
+ [ 1.3581e-01  1.1798e+00 -1.4851e+02]
+ [ 1.7117e-04 -1.5450e-06  1.0000e+00]]</pre></div>
+        </div>
+        <div class="story-copy wide-copy">
+          <p class="table-note">Set 4's 1.jpg is 1500 × 1125 px and the other photos are 1600 × 1200 px, which also enters H as a scale factor. Set 3's large error is not a bad click but parallax; see A.4.</p>
+        </div>
+      </article>
+
+      <!-- ============================== A.3 ============================== -->
+      <article class="story" id="a-3">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART A · 3</p>
+          <h3>Warping and rectification</h3>
+          <p><b>Inverse warping.</b> Forward warping (pushing every source pixel through H) leaves holes, so both warps work backwards. I first push the four corners of the source through H to get the output bounding box. Then, for every output pixel (x′, y′) in that box, I compute its source position p = H<sup>−1</sup>(x′, y′, 1)ᵀ, divide by the third coordinate, and sample the source image there. The whole grid is processed with array operations, 256 output rows at a time to bound memory. Each warp also returns an alpha mask that is 1 where the source position lies inside the source image (and in front of the camera, i.e. the homogeneous coordinate is positive) and 0 elsewhere; A.4 uses these masks for blending.</p>
+          <p><b>Two samplers.</b> <code>warpImageNearestNeighbor</code> rounds the source position to the nearest pixel center and copies that pixel. <code>warpImageBilinear</code> takes the four surrounding pixels and averages them with weights (1 − a<sub>x</sub>)(1 − a<sub>y</sub>), a<sub>x</sub>(1 − a<sub>y</sub>), (1 − a<sub>x</sub>)a<sub>y</sub> and a<sub>x</sub>a<sub>y</sub>, where a<sub>x</sub>, a<sub>y</sub> are the fractional parts of the source position. Both are written from scratch with NumPy; no library warp or interpolation function is used.</p>
+        </div>
+        <div class="full-figure"><pre class="code"><code>def _source_coords(H_inv, bbox, row_start, row_stop):
+    xmin, ymin, xmax, _ = bbox
+    gx, gy = np.meshgrid(np.arange(xmin, xmax + 1.0), np.arange(ymin + row_start, ymin + row_stop, dtype=float))
+    den = H_inv[2, 0] * gx + H_inv[2, 1] * gy + H_inv[2, 2]
+    front = den &gt; 1e-12                      # points mapped from behind the camera are invalid
+    den = np.where(front, den, 1.0)
+    sx = (H_inv[0, 0] * gx + H_inv[0, 1] * gy + H_inv[0, 2]) / den
+    sy = (H_inv[1, 0] * gx + H_inv[1, 1] * gy + H_inv[1, 2]) / den
+    return sx, sy, front
+
+def _sample_nearest(im, sx, sy, front):
+    h, w = im.shape[:2]
+    xi, yi = np.floor(sx + 0.5).astype(int), np.floor(sy + 0.5).astype(int)
+    valid = front &amp; (xi &gt;= 0) &amp; (xi &lt; w) &amp; (yi &gt;= 0) &amp; (yi &lt; h)
+    return im[np.clip(yi, 0, h - 1), np.clip(xi, 0, w - 1)] * valid[..., None], valid.astype(float)
+
+def _sample_bilinear(im, sx, sy, front):
+    h, w = im.shape[:2]
+    valid = front &amp; (sx &gt;= 0) &amp; (sx &lt;= w - 1) &amp; (sy &gt;= 0) &amp; (sy &lt;= h - 1)
+    x0 = np.clip(np.floor(sx).astype(int), 0, w - 2); y0 = np.clip(np.floor(sy).astype(int), 0, h - 2)
+    ax = np.clip(sx - x0, 0, 1)[..., None];         ay = np.clip(sy - y0, 0, 1)[..., None]
+    top = im[y0, x0] * (1 - ax) + im[y0, x0 + 1] * ax
+    bottom = im[y0 + 1, x0] * (1 - ax) + im[y0 + 1, x0 + 1] * ax
+    return (top * (1 - ay) + bottom * ay) * valid[..., None], valid.astype(float)</code></pre></div>
+        <div class="story-copy wide-copy">
+          <p><b>Rectification.</b> To test the warps, I make a slanted rectangle look fronto-parallel. I click its four corners (top-left, top-right, bottom-right, bottom-left) and map them to an axis-aligned rectangle. The rectangle's width is the average of the top and bottom edge lengths and its height is the average of the left and right edges. With exactly four points the system is 8 × 8 and solved exactly (reprojection error 0). The true proportions of the signs are unknown, so the averaged edges only approximate them. For a very foreshortened object such as the PSR sign, the result can come out slightly too narrow. Everything off the sign's plane (trees, grass, posts) is stretched, as expected, because the homography is only correct for that plane.</p>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/rectify/psr_sign_input.jpg" alt="Pacific School of Religion sign photographed at an angle with the four clicked corners marked" loading="lazy"><figcaption>Input · PSR sign · clicked corners</figcaption></figure>
+          <figure><img src="./media/rectify/psr_sign_rectified.jpg" alt="The PSR sign rectified to a fronto-parallel rectangle" loading="lazy"><figcaption>Rectified (bilinear)</figcaption></figure>
+          <figure><img src="./media/rectify/recycle_sign_input.jpg" alt="Berkeley recycling sign on a trash compactor photographed from above with the four clicked corners marked" loading="lazy"><figcaption>Input · Berkeley recycling sign · clicked corners</figcaption></figure>
+          <figure><img src="./media/rectify/recycle_sign_rectified.jpg" alt="The recycling sign rectified to a fronto-parallel rectangle" loading="lazy"><figcaption>Rectified (bilinear)</figcaption></figure>
+        </div>
+        <div class="story-copy wide-copy">
+          <p><b>Nearest neighbor vs. bilinear.</b> Below are 110 × 110 px crops of each rectified sign, enlarged 4× with pixel replication so single pixels are visible. Each crop is taken where the sign has the most edges. The rectification enlarges the far side of each sign, so one source pixel is spread over several output pixels. Nearest neighbor copies whole source pixels, so slanted strokes become staircases (the “W” and the serifs of “Welcome”, the edges of “GREEN”) and thin strokes change thickness from letter to letter. Bilinear interpolation varies smoothly between source pixels, so edges stay straight and anti-aliased. Its result is slightly softer, but it never invents structure.</p>
+        </div>
+        <div class="figure-grid two detail">
+          <figure><img src="./media/rectify/psr_sign_detail_nearest.png" alt="Nearest-neighbor detail of the word Welcome" loading="lazy"><figcaption>PSR · nearest neighbor</figcaption></figure>
+          <figure><img src="./media/rectify/psr_sign_detail_bilinear.png" alt="Bilinear detail of the word Welcome" loading="lazy"><figcaption>PSR · bilinear</figcaption></figure>
+          <figure><img src="./media/rectify/recycle_sign_detail_nearest.png" alt="Nearest-neighbor detail of the word GREEN" loading="lazy"><figcaption>Recycling · nearest neighbor</figcaption></figure>
+          <figure><img src="./media/rectify/recycle_sign_detail_bilinear.png" alt="Bilinear detail of the word GREEN" loading="lazy"><figcaption>Recycling · bilinear</figcaption></figure>
+        </div>
+        <div class="story-copy wide-copy">
+          <table class="metric-table"><thead><tr><th>image</th><th>output size</th><th>nearest neighbor</th><th>bilinear</th><th>ratio</th></tr></thead><tbody>
+            <tr><td>PSR sign</td><td>1729 × 1999 px</td><td>0.22 s</td><td>0.72 s</td><td>3.2×</td></tr>
+            <tr><td>Recycling sign</td><td>1194 × 1199 px</td><td>0.10 s</td><td>0.30 s</td><td>3.1×</td></tr>
+          </tbody></table>
+          <p class="table-note">Wall-clock time of the warp only (same machine, same output box). Computing the source coordinates is identical for both, so the difference is the sampling itself.</p>
+          <p><b>Speed.</b> Bilinear is about 3× slower. It gathers four source pixels per output pixel instead of one and does three weighted blends per channel. Nearest neighbor does one gather. Both are fast enough here, but I use bilinear for all mosaics because the quality difference is visible and the extra cost is well under a second per photo.</p>
+        </div>
+      </article>
+
+      <!-- ============================== A.4 ============================== -->
+      <article class="story" id="a-4">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART A · 4</p>
+          <h3>Blending images into a mosaic</h3>
+          <p><b>Procedure.</b></p>
+          <ol class="steps">
+            <li><b>Reference frame.</b> The middle photo is the reference (for two-photo sets, the right one), so the distortion is spread over both sides instead of piling up at one end.</li>
+            <li><b>Chain the homographies.</b> I only click neighboring pairs, which gives H<sub>i</sub> from photo i to photo i + 1. The map from any photo to the reference is a product of these: H<sub>1→2</sub> for the left photo and H<sub>2→3</sub><sup>−1</sup> for the right one.</li>
+            <li><b>Shared canvas.</b> The four corners of every photo are pushed through its map to the reference. The union of the resulting boxes is the canvas, so nothing is cut off.</li>
+            <li><b>Warp.</b> Every photo is inverse-warped onto the full canvas with <code>warpImageBilinear</code>, together with its alpha mask.</li>
+            <li><b>Blend.</b> The overlaps are combined with one of three methods, compared below.</li>
+          </ol>
+          <ul class="blend-list">
+            <li><b>Overwrite</b> (baseline): each photo is pasted over the previous one. Any exposure difference shows up as a hard seam.</li>
+            <li><b>Feathering</b> (weighted average): each photo's weight is the distance transform of its alpha mask, normalized to 1 at its center and falling linearly to 0 at its border. The output is Σ w<sub>i</sub>I<sub>i</sub> / Σ w<sub>i</sub>, so photos fade smoothly into each other.</li>
+            <li><b>Two-band blending</b> (a 2-level Laplacian pyramid): each photo is split into a low band (Gaussian blur, σ = 3 px, computed only inside its mask so the black border does not bleed in) and a high band (photo minus low band). The low bands are feathered as above, which hides exposure differences. Each output pixel takes its high band from the photo with the largest weight there, so fine detail is never averaged.</li>
+          </ul>
+        </div>
+        <div class="figure-grid three">
+          <figure><img src="./media/set1/warped_1.jpg" alt="Set 1 photo 1 warped into the frame of photo 2" loading="lazy"><figcaption>Set 1 · 1.jpg warped to the reference</figcaption></figure>
+          <figure><img src="./media/set1/warped_2.jpg" alt="Set 1 photo 2, the reference, placed on the canvas" loading="lazy"><figcaption>2.jpg (reference, identity)</figcaption></figure>
+          <figure><img src="./media/set1/warped_3.jpg" alt="Set 1 photo 3 warped into the frame of photo 2" loading="lazy"><figcaption>3.jpg warped to the reference</figcaption></figure>
+        </div>
+        <div class="figure-grid three">
+          <figure><img src="./media/set1/mosaic_overwrite.jpg" alt="Set 1 mosaic with overwrite blending" loading="lazy"><figcaption>Overwrite: visible seams in the sky and on the lawn</figcaption></figure>
+          <figure><img src="./media/set1/mosaic_feather.jpg" alt="Set 1 mosaic with feather blending" loading="lazy"><figcaption>Feathering: no seams, some ghosting</figcaption></figure>
+          <figure><img src="./media/set1/mosaic_twoband.jpg" alt="Set 1 mosaic with two-band blending" loading="lazy"><figcaption>Two-band: no seams, sharp</figcaption></figure>
+        </div>
+        <div class="story-copy wide-copy">
+          <p><b>Seams.</b> Exposure and lens vignetting differ slightly between shots, so the same sky is a slightly different blue in each photo. Overwrite turns this into hard vertical edges in the sky and on the lawn. The base of the lamp post is also cut in two, because the lamp is close to the camera (the same parallax as in set 3 below). Blending the low frequencies spreads the exposure change over the whole overlap, where it is invisible.</p>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/set1/zoom_seam_sky_overwrite.jpg" alt="Sky crop of the overwrite mosaic with visible vertical brightness steps" loading="lazy"><figcaption>Overwrite · sky: brightness steps at the photo borders</figcaption></figure>
+          <figure><img src="./media/set1/zoom_seam_sky_twoband.jpg" alt="Same sky crop of the two-band mosaic, uniform" loading="lazy"><figcaption>Two-band · sky</figcaption></figure>
+          <figure><img src="./media/set1/zoom_seam_lawn_overwrite.jpg" alt="Lawn crop of the overwrite mosaic with a seam through the shadow and lamp base" loading="lazy"><figcaption>Overwrite · lawn: seam through the shadow and the lamp base</figcaption></figure>
+          <figure><img src="./media/set1/zoom_seam_lawn_twoband.jpg" alt="Same lawn crop of the two-band mosaic" loading="lazy"><figcaption>Two-band · lawn</figcaption></figure>
+        </div>
+        <div class="story-copy wide-copy">
+          <p><b>Why two bands.</b> Feathering fixes the seams of the overwrite result, but wherever the photos disagree slightly it averages two copies of an edge. This happens with leaves moving in the wind, or with a residual misalignment of a pixel or two, and the result is a soft double image (ghosting). The crops below are taken where feathering differs most from the two-band result. In both sets this lands on trees, whose leaves moved between the shots. Two-band blending keeps one copy of the fine detail and blends only the smooth colors.</p>
+        </div>
+        <div class="figure-grid three">
+          <figure><img src="./media/set4/zoom_ghost_overwrite.jpg" alt="Set 4 tree crop, overwrite" loading="lazy"><figcaption>Set 4 · overwrite</figcaption></figure>
+          <figure><img src="./media/set4/zoom_ghost_feather.jpg" alt="Set 4 tree crop, feathering, ghosted leaves" loading="lazy"><figcaption>Set 4 · feathering (ghosted leaves)</figcaption></figure>
+          <figure><img src="./media/set4/zoom_ghost_twoband.jpg" alt="Set 4 tree crop, two-band, sharp leaves" loading="lazy"><figcaption>Set 4 · two-band</figcaption></figure>
+          <figure><img src="./media/set1/zoom_ghost_overwrite.jpg" alt="Set 1 tree crop, overwrite" loading="lazy"><figcaption>Set 1 · overwrite</figcaption></figure>
+          <figure><img src="./media/set1/zoom_ghost_feather.jpg" alt="Set 1 tree crop, feathering" loading="lazy"><figcaption>Set 1 · feathering</figcaption></figure>
+          <figure><img src="./media/set1/zoom_ghost_twoband.jpg" alt="Set 1 tree crop, two-band" loading="lazy"><figcaption>Set 1 · two-band</figcaption></figure>
+        </div>
+
+        <div class="story-copy wide-copy"><h3 class="sub">The mosaics</h3><p>All four mosaics use two-band blending. The source photos of each set are shown in A.1.</p></div>
+        <figure class="full-figure"><img src="./media/set1/mosaic_twoband.jpg" alt="Set 1 mosaic of the white building" loading="lazy"><figcaption>Mosaic 1 · white building · 3 photos · RMS 1.11 / 1.24 px. The building's cornice and windows continue straight across both seams.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/set2/mosaic_twoband.jpg" alt="Set 2 mosaic of Giannini Hall" loading="lazy"><figcaption>Mosaic 2 · Giannini Hall · 2 photos · RMS 0.85 px. The inscription along the frieze reads continuously across the overlap.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/set3/mosaic_twoband.jpg" alt="Set 3 mosaic of the crosswalk at Le Conte Avenue" loading="lazy"><figcaption>Mosaic 3 · crosswalk at Le Conte Ave · 2 photos · RMS 4.07 px (parallax, see below). The faint dark disc on the crosswalk is a car that drove through between the two shots.</figcaption></figure>
+        <figure class="full-figure"><img src="./media/set4/mosaic_twoband.jpg" alt="Set 4 mosaic of a street with autumn trees" loading="lazy"><figcaption>Mosaic 4 · street with autumn trees · 3 photos · RMS 1.19 / 1.52 px.</figcaption></figure>
+
+        <div class="story-copy wide-copy">
+          <h3 class="sub">What went wrong in set 3: parallax</h3>
+          <p>Set 3 has an RMS error of 4.07 px, three to four times that of the other sets, although each click was checked. The errors are not random. When I fit H to subsets of the points, the points on the distant houses, poles and traffic light agree with each other, and the points on the ground at my feet and on the nearby pedestrian signal agree with each other, but the two groups disagree. That is the signature of parallax: between the two shots my phone also moved slightly instead of only rotating about its lens. A homography is exact for a pure rotation, or for a single plane, but with a translated camera points at different depths shift by different amounts, and no single H can fit them all.</p>
+          <p>The table compares the fit to all 13 points with a fit to only the 7 far points. The far-only H fits the background almost perfectly (1.2 px), but it is up to 24 px off on the ground. In the mosaic, the crosswalk stripes, the yellow tactile pad and the person's legs then appear twice. The all-points fit splits the difference, at most 6.4 px anywhere, which the two-band blend hides well. So I kept all 13 points. The real fix is to retake the photos while turning the phone strictly about its lens.</p>
+          <table class="metric-table"><thead><tr><th>fit</th><th>RMS on 7 far points</th><th>RMS on 6 near points</th><th>max on near points</th></tr></thead><tbody>
+            <tr class="hl"><td>all 13 points (used)</td><td>4.18 px</td><td>3.94 px</td><td>6.39 px</td></tr>
+            <tr><td>far points only</td><td>1.23 px</td><td>16.06 px</td><td>23.93 px</td></tr>
+          </tbody></table>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/set3/parallax_background_all.jpg" alt="Background houses, mosaic from all points" loading="lazy"><figcaption>Background · all 13 points</figcaption></figure>
+          <figure><img src="./media/set3/parallax_background_far.jpg" alt="Background houses, mosaic from far points only" loading="lazy"><figcaption>Background · far points only</figcaption></figure>
+          <figure><img src="./media/set3/parallax_foreground_all.jpg" alt="Crosswalk in the foreground, mosaic from all points, aligned" loading="lazy"><figcaption>Foreground · all 13 points: one crosswalk</figcaption></figure>
+          <figure><img src="./media/set3/parallax_foreground_far.jpg" alt="Crosswalk in the foreground, mosaic from far points only, doubled stripes" loading="lazy"><figcaption>Foreground · far points only: doubled stripes, pad and legs</figcaption></figure>
+        </div>
+      </article>
+    </section>
+
+    <section class="learning" id="takeaway">
+      <p class="section-kicker">MOST IMPORTANT TAKEAWAY</p>
+      <blockquote>A homography is only as good as the camera motion: rotate about the lens and eight numbers align everything; move the camera and no blending can fully hide it.</blockquote>
+      <p>The math of Part A is small: a linear least-squares problem and a resampling loop. Most of the effort went into the data. Correspondences spread over the whole overlap gave sub-2-pixel fits. The reprojection error caught the one click on a nearby lamp. And the crosswalk set showed what happens when the camera translates: near and far points want different homographies. Two-band blending covers small residuals and moving leaves, but it cannot remove a real geometric conflict. That has to be fixed when taking the photos.</p>
+    </section>
+
+  </main>
+  <footer><a href="../">← Back to project index</a><span>UC BERKELEY · CS 180 · FALL 2026</span></footer>
+</body>
+</html>
