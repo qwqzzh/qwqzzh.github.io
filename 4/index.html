@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CS 180 Project 4A: homographies from clicked correspondences, inverse warping with nearest-neighbor and bilinear sampling, image rectification and blended photo mosaics.">
+  <meta name="description" content="CS 180 Project 4: automatic and manual photo mosaics. Homographies from clicked correspondences, inverse warping with nearest-neighbor and bilinear sampling, image rectification and blended photo mosaics.">
   <title>Project 4 · Stitching Photo Mosaics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,15 +13,15 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">← ALL PROJECTS</a>
-    <nav aria-label="Project sections"><a href="#a-1">A.1 Photos</a><a href="#a-2">A.2 Homography</a><a href="#a-3">A.3 Warp</a><a href="#a-4">A.4 Mosaics</a></nav>
+    <nav aria-label="Project sections"><a href="#a-1">A.1</a><a href="#a-2">A.2</a><a href="#a-3">A.3</a><a href="#a-4">A.4</a><a href="#b-1">B.1</a><a href="#b-2">B.2</a><a href="#b-3">B.3</a><a href="#b-4">B.4</a></nav>
   </header>
 
   <main>
     <section class="hero">
       <div class="hero-copy">
         <p class="eyebrow">CS 180 · PROJECT 4 · FALL 2026</p>
-        <h1>Photo Mosaics<br><em>by hand</em></h1>
-        <p class="lede">Part A of [Auto]Stitching: photos taken while rotating about the camera's center, homographies recovered from clicked correspondences by least squares, inverse warping written from scratch, rectified signs, and four blended mosaics around the Berkeley campus.</p>
+        <h1>Photo Mosaics<br><em>by hand, then automatically</em></h1>
+        <p class="lede">Part A: photos taken while rotating about the camera's center, homographies recovered from clicked correspondences by least squares, inverse warping written from scratch, rectified signs, and four blended mosaics around the Berkeley campus. Part B: the clicking is replaced by Harris corners, ANMS, patch descriptors, ratio-test matching and 4-point RANSAC.</p>
       </div>
       <figure class="hero-image">
         <img src="./media/set4/mosaic_twoband.jpg" alt="Three-photo mosaic of a street with red and yellow trees, a utility pole and parked cars">
@@ -36,6 +36,10 @@
         <article><span>A.2</span><h2>Solve</h2><p>Click matching points and solve a 2n × 8 least-squares system for the homography H.</p></article>
         <article><span>A.3</span><h2>Warp</h2><p>Inverse-warp with nearest-neighbor or bilinear sampling and use it to rectify planar objects.</p></article>
         <article><span>A.4</span><h2>Blend</h2><p>Warp every photo into the middle photo's frame and blend the overlaps without seams or ghosts.</p></article>
+        <article><span>B.1</span><h2>Detect</h2><p>Find Harris corners and keep 500 well-spread ones with adaptive non-maximal suppression.</p></article>
+        <article><span>B.2</span><h2>Describe</h2><p>Sample a blurred, normalized 8 × 8 patch from the 40 × 40 window around each corner.</p></article>
+        <article><span>B.3</span><h2>Match</h2><p>Pair similar descriptors, keeping a match only if it clearly beats the second-best candidate.</p></article>
+        <article><span>B.4</span><h2>Verify</h2><p>Use 4-point RANSAC to find the largest consistent set of matches, then stitch without any clicks.</p></article>
       </div>
     </section>
 
@@ -319,6 +323,158 @@ def _sample_bilinear(im, sx, sy, front):
           <figure><img src="./media/set3/parallax_background_far.jpg" alt="Background houses, mosaic from far points only" loading="lazy"><figcaption>Background · far points only</figcaption></figure>
           <figure><img src="./media/set3/parallax_foreground_all.jpg" alt="Crosswalk in the foreground, mosaic from all points, aligned" loading="lazy"><figcaption>Foreground · all 13 points: one crosswalk</figcaption></figure>
           <figure><img src="./media/set3/parallax_foreground_far.jpg" alt="Crosswalk in the foreground, mosaic from far points only, doubled stripes" loading="lazy"><figcaption>Foreground · far points only: doubled stripes, pad and legs</figcaption></figure>
+        </div>
+      </article>
+    </section>
+
+    <!-- ============================== PART B ============================== -->
+    <section class="chapter light" id="part-b">
+      <header class="chapter-head"><div><span>PART B</span></div><h2>Feature Matching for Autostitching</h2></header>
+
+      <article class="story" id="b-1">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART B · 1</p>
+          <h3>Harris corners and ANMS</h3>
+          <p>Part B replaces my clicking with the method of Brown, Szeliski and Winder (“Multi-Image Matching using Multi-Scale Oriented Patches”), with the course's simplifications: one scale, no sub-pixel refinement and no rotation invariance. Everything runs on the same photos and the same working size (at most 1600 px) as Part A.</p>
+          <p><b>Harris corners.</b> At every pixel, the structure tensor M is built from Sobel gradients and smoothed with a Gaussian of σ = 1. The corner strength is f = 2 det(M) / (tr(M) + ε). This is the same formula as the course's <code>harris.py</code>; I compute it with <code>scipy.ndimage</code> because that file needs scikit-image. A corner is a 3 × 3 local maximum of f that lies more than 20 px from the border, so its descriptor window fits. It must also reach at least 10<sup>−3</sup> of the strongest response, which removes noise “corners” in flat sky. That leaves 28,212–35,856 corners per photo, on nearly every textured surface: far too many to match.</p>
+          <p><b>Adaptive non-maximal suppression.</b> Taking just the strongest corners would cluster them where the contrast is highest, and the overlap between two photos may have few of those. ANMS instead gives each corner a suppression radius, the distance to the nearest corner that is clearly stronger:</p>
+          <p class="equation-block">r<sub>i</sub> = min<sub>j</sub> ‖x<sub>i</sub> − x<sub>j</sub>‖ &nbsp;subject to&nbsp; f(x<sub>i</sub>) &lt; c<sub>robust</sub> f(x<sub>j</sub>), &nbsp;&nbsp;c<sub>robust</sub> = 0.9</p>
+          <p>I keep the 500 corners with the largest radii, the number used in the paper. These are the corners that dominate their neighborhood, so they spread over the whole photo: the smallest kept radius is 34–38 px. Once the corners are sorted by strength, the ones clearly stronger than corner i are a prefix of the list, so each radius is one distance computation against that prefix. Corners, ANMS and descriptors together take 4–6 s per photo.</p>
+        </div>
+        <div class="full-figure"><pre class="code"><code>def anms(xy, strength, n_points=500, c_robust=0.9):
+    order = np.argsort(-strength)
+    ranked_xy, ranked = xy[order], strength[order]
+    # in descending order, the corners clearly stronger than corner i are a prefix of the list
+    stronger = np.searchsorted(-ranked, -ranked / c_robust, side="left")
+    radius2 = np.full(len(ranked), np.inf)
+    for i in np.nonzero(stronger)[0]:
+        radius2[i] = ((ranked_xy[:stronger[i]] - ranked_xy[i]) ** 2).sum(axis=1).min()
+    keep = np.argsort(-radius2, kind="stable")[:n_points]
+    return order[keep], np.sqrt(radius2[keep])</code></pre></div>
+        <div class="figure-grid two">
+          <figure><img src="./media/partB/set1/harris_2.jpg" alt="All Harris corners on the white building photo" loading="lazy"><figcaption>Set 1 · 2.jpg · all 30,238 Harris corners</figcaption></figure>
+          <figure><img src="./media/partB/set1/anms_2.jpg" alt="500 corners after ANMS on the white building photo" loading="lazy"><figcaption>Set 1 · 2.jpg · 500 corners after ANMS</figcaption></figure>
+          <figure><img src="./media/partB/set2/harris_1.jpg" alt="All Harris corners on the hall photo" loading="lazy"><figcaption>Set 2 · 1.jpg · all 35,856 Harris corners</figcaption></figure>
+          <figure><img src="./media/partB/set2/anms_1.jpg" alt="500 corners after ANMS on the hall photo" loading="lazy"><figcaption>Set 2 · 1.jpg · 500 corners after ANMS</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="story" id="b-2">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART B · 2</p>
+          <h3>Feature descriptors</h3>
+          <p>Each kept corner gets an axis-aligned 8 × 8 descriptor sampled from the 40 × 40 window around it. I blur the grayscale photo with a Gaussian of σ = 2.5 and take one sample every 5 px, which avoids aliasing. The result is low-frequency on purpose: a corner found a pixel or two away from the true position still gives almost the same descriptor. Each patch is then bias/gain normalized, d′ = (d − μ) / σ, so a brightness or contrast change between shots does not affect it. As the course allows, there is no rotation invariance and no wavelet step.</p>
+        </div>
+        <div class="full-figure"><pre class="code"><code>def extract_descriptors(gray, xy):
+    blurred = gaussian_filter(gray, 2.5)
+    offsets = 5 * np.arange(8) - 20 + 2                # -18, -13, ..., 17: one sample per 5 x 5 cell of the 40 x 40 window
+    cols = xy[:, 0].astype(int)[:, None] + offsets
+    rows = xy[:, 1].astype(int)[:, None] + offsets
+    patches = blurred[rows[:, :, None], cols[:, None, :]]
+    mean, std = patches.mean(axis=(1, 2), keepdims=True), patches.std(axis=(1, 2), keepdims=True)
+    return (patches - mean) / np.maximum(std, 1e-8)</code></pre></div>
+        <figure class="full-figure detail-plot"><img src="./media/partB/set1/features_1_to_2.png" alt="Six matched features: the 40 by 40 window and the normalized 8 by 8 descriptor in each of two photos" loading="lazy"><figcaption>Six features from set 1, 1 → 2. Rows 1 and 3: the 40 × 40 windows in the two photos. Rows 2 and 4: the normalized 8 × 8 descriptors. The windows differ in fine detail because the viewpoint changed, but the descriptors stay very similar.</figcaption></figure>
+      </article>
+
+      <article class="story" id="b-3">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART B · 3</p>
+          <h3>Feature matching</h3>
+          <p>For every descriptor in one photo I compute the squared error to all 500 descriptors in the other. The size of the best error says little about whether a match is right, so I use Lowe's test instead: the ratio e<sub>1-NN</sub> / e<sub>2-NN</sub> between the best and second-best error. A correct match is much better than any alternative, while a wrong one is about as good as the runner-up. If several features pick the same target, only the one with the lowest ratio survives.</p>
+          <p>I use a threshold of 0.6. In Figure 6b of the paper, the distributions for correct and incorrect matches cross near 0.65 on this same squared-error ratio. My own data supports the choice: the table counts, over all six photo pairs, the nearest neighbors below each ratio and how many of them land within 3 px of where the final H sends them. Raising the threshold from 0.6 to 0.9 nearly doubles the matches but adds few consistent ones.</p>
+          <table class="metric-table"><thead><tr><th>ratio below</th><th>matches</th><th>consistent with final H</th><th>share</th></tr></thead><tbody>
+            <tr><td>0.3</td><td>643</td><td>426</td><td>66%</td></tr><tr><td>0.4</td><td>747</td><td>478</td><td>64%</td></tr><tr><td>0.5</td><td>832</td><td>511</td><td>61%</td></tr><tr class="hl"><td>0.6 (used)</td><td>930</td><td>530</td><td>57%</td></tr><tr><td>0.7</td><td>1091</td><td>548</td><td>50%</td></tr><tr><td>0.8</td><td>1312</td><td>560</td><td>43%</td></tr><tr><td>0.9</td><td>1822</td><td>577</td><td>32%</td></tr>
+          </tbody></table>
+          <p class="table-note">Before removing duplicate targets. The final H comes from the run at 0.6. The “inconsistent” matches are not all wrong: many lie on another depth layer (see B.4).</p>
+        </div>
+        <figure class="full-figure"><img src="./media/partB/set1/matches_ratio_1_to_2.jpg" alt="Matches after the ratio test between set 1 photos 1 and 2" loading="lazy"><figcaption>Set 1 · 1 → 2 · 141 matches after the ratio test. Green: kept by RANSAC. Red: rejected.</figcaption></figure>
+          <figure class="full-figure"><img src="./media/partB/set2/matches_ratio_1_to_2.jpg" alt="Matches after the ratio test between set 2 photos 1 and 2" loading="lazy"><figcaption>Set 2 · 1 → 2 · 146 matches after the ratio test. Green: kept by RANSAC. Red: rejected.</figcaption></figure>
+      </article>
+
+      <article class="story" id="b-4">
+        <div class="story-copy wide-copy">
+          <p class="part-label section-number">PART B · 4</p>
+          <h3>RANSAC and automatic mosaics</h3>
+          <p><b>4-point RANSAC.</b> Some ratio-test matches still disagree with the main homography, and a single one would ruin a least-squares fit. So I repeat this 5,000 times: pick 4 random matches, compute the exact homography through them with <code>computeH</code>, and count the matches it maps to within 2 px of their partners. The largest such set wins. I then refit H by least squares on that whole set and recollect the inliers until they stop changing. The random seed is fixed, so the result is reproducible.</p>
+          <p>A random sample of 4 is all inliers with probability w<sup>4</sup>, where w is the inlier rate. My lowest rate is 40%, so about 180 iterations already give a 99% chance of one clean sample. 5,000 iterations leave a wide margin and take about 0.5 s per pair. The mosaics then use exactly the Part A code: chained homographies, the middle photo as reference, bilinear warping and two-band blending.</p>
+        </div>
+        <div class="full-figure"><pre class="code"><code>def ransac_homography(pts1, pts2, threshold=2.0, iterations=5000, seed=180):
+    rng = np.random.default_rng(seed)
+    best = np.zeros(len(pts1), dtype=bool)
+    for _ in range(iterations):
+        sample = rng.choice(len(pts1), 4, replace=False)
+        inliers = reprojection_error(computeH(pts1[sample], pts2[sample]), pts1, pts2) &lt; threshold
+        if inliers.sum() &gt; best.sum():
+            best = inliers
+    for _ in range(10):                                # refit on all inliers until the set stops changing
+        H = computeH(pts1[best], pts2[best])
+        inliers = reprojection_error(H, pts1, pts2) &lt; threshold
+        if (inliers == best).all() or inliers.sum() &lt; 4:
+            break
+        best = inliers
+    return H, best</code></pre></div>
+        <div class="story-copy wide-copy">
+          <table class="metric-table"><thead><tr><th>pair</th><th>ratio-test matches</th><th>RANSAC inliers</th><th>inlier RMS</th><th>automatic H on my clicks</th><th>manual H on my clicks</th></tr></thead><tbody>
+<tr><td>Set 1 · 1 → 2</td><td>141</td><td>75</td><td>1.03 px</td><td>1.74 px</td><td>1.11 px</td></tr>
+<tr><td>Set 1 · 2 → 3</td><td>151</td><td>72</td><td>1.18 px</td><td>2.03 px</td><td>1.24 px</td></tr>
+<tr><td>Set 2 · 1 → 2</td><td>146</td><td>79</td><td>1.05 px</td><td>1.45 px</td><td>0.85 px</td></tr>
+<tr><td>Set 3 · 1 → 2</td><td>138</td><td>55</td><td>1.13 px</td><td>9.19 px</td><td>4.07 px</td></tr>
+<tr><td>Set 4 · 1 → 2</td><td>123</td><td>81</td><td>0.92 px</td><td>3.35 px</td><td>1.19 px</td></tr>
+<tr><td>Set 4 · 2 → 3</td><td>164</td><td>91</td><td>1.09 px</td><td>2.53 px</td><td>1.52 px</td></tr>
+          </tbody></table>
+          <p class="table-note">The clicked points are never used to compute the automatic H, so its error on them is an independent check. The manual H was fitted to those same clicks, so its column is lower by construction.</p>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/partB/set1/matches_ransac_1_to_2.jpg" alt="RANSAC inlier matches, Set 1 · 1 → 2" loading="lazy"><figcaption>Set 1 · 1 → 2 · 75 inliers</figcaption></figure>
+          <figure><img src="./media/partB/set1/matches_ransac_2_to_3.jpg" alt="RANSAC inlier matches, Set 1 · 2 → 3" loading="lazy"><figcaption>Set 1 · 2 → 3 · 72 inliers</figcaption></figure>
+          <figure><img src="./media/partB/set2/matches_ransac_1_to_2.jpg" alt="RANSAC inlier matches, Set 2 · 1 → 2" loading="lazy"><figcaption>Set 2 · 1 → 2 · 79 inliers</figcaption></figure>
+          <figure><img src="./media/partB/set3/matches_ransac_1_to_2.jpg" alt="RANSAC inlier matches, Set 3 · 1 → 2" loading="lazy"><figcaption>Set 3 · 1 → 2 · 55 inliers</figcaption></figure>
+          <figure><img src="./media/partB/set4/matches_ransac_1_to_2.jpg" alt="RANSAC inlier matches, Set 4 · 1 → 2" loading="lazy"><figcaption>Set 4 · 1 → 2 · 81 inliers</figcaption></figure>
+          <figure><img src="./media/partB/set4/matches_ransac_2_to_3.jpg" alt="RANSAC inlier matches, Set 4 · 2 → 3" loading="lazy"><figcaption>Set 4 · 2 → 3 · 91 inliers</figcaption></figure>
+        </div>
+
+        <div class="story-copy wide-copy">
+          <h3 class="sub">What RANSAC rejects is mostly not wrong</h3>
+          <p>In the figures above, the rejected matches are not scattered at random. In set 1 almost the whole lawn and path is red, although those matches look correct. To test this, I ran RANSAC a second time on just the rejected matches. In every pair it finds another 29–42 matches that agree with each other on a single homography, 5–12 px away from the first one.</p>
+          <table class="metric-table"><thead><tr><th>pair</th><th>rejected matches</th><th>agreeing on a second H</th><th>their median offset from the first H</th><th>max offset</th></tr></thead><tbody>
+<tr><td>Set 1 · 1 → 2</td><td>66</td><td>42</td><td>11.8 px</td><td>23.8 px</td></tr>
+<tr><td>Set 1 · 2 → 3</td><td>79</td><td>41</td><td>12.5 px</td><td>21.9 px</td></tr>
+<tr><td>Set 2 · 1 → 2</td><td>67</td><td>40</td><td>6.6 px</td><td>10.3 px</td></tr>
+<tr><td>Set 3 · 1 → 2</td><td>83</td><td>29</td><td>5.2 px</td><td>11.9 px</td></tr>
+<tr><td>Set 4 · 1 → 2</td><td>42</td><td>34</td><td>8.8 px</td><td>18.9 px</td></tr>
+<tr><td>Set 4 · 2 → 3</td><td>73</td><td>38</td><td>10.3 px</td><td>15.7 px</td></tr>
+          </tbody></table>
+          <p>So the photos hold two depth layers, typically the building or background and the ground near the camera. This is the parallax from Part A again: the phone moved slightly between shots instead of rotating only about its lens. It affects all four sets, not only set 3, where it was just most visible in the clicks. RANSAC locks onto whichever layer has the most matches. That is the building or far scene in sets 1, 2 and 4, and the ground in set 3, which explains why set 3 has the largest error on my clicks: they cover both layers.</p>
+        </div>
+
+        <div class="story-copy wide-copy">
+          <h3 class="sub">Manual vs. automatic</h3>
+          <p>Both columns use the same photos and blending; only the homographies differ. In sets 1, 2 and 4 I see no visible misalignment in either version, even though the automatic ones took no clicking.</p>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/set1/mosaic_twoband.jpg" alt="Set 1 mosaic stitched from hand-clicked points" loading="lazy"><figcaption>Set 1 · white building · manual (Part A)</figcaption></figure>
+          <figure><img src="./media/partB/set1/mosaic_auto_twoband.jpg" alt="Set 1 mosaic stitched automatically" loading="lazy"><figcaption>Set 1 · white building · automatic</figcaption></figure>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/set2/mosaic_twoband.jpg" alt="Set 2 mosaic stitched from hand-clicked points" loading="lazy"><figcaption>Set 2 · Hall · manual (Part A)</figcaption></figure>
+          <figure><img src="./media/partB/set2/mosaic_auto_twoband.jpg" alt="Set 2 mosaic stitched automatically" loading="lazy"><figcaption>Set 2 · Hall · automatic</figcaption></figure>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/set3/mosaic_twoband.jpg" alt="Set 3 mosaic stitched from hand-clicked points" loading="lazy"><figcaption>Set 3 · Crosswalk · manual (Part A)</figcaption></figure>
+          <figure><img src="./media/partB/set3/mosaic_auto_twoband.jpg" alt="Set 3 mosaic stitched automatically" loading="lazy"><figcaption>Set 3 · Crosswalk · automatic</figcaption></figure>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/set4/mosaic_twoband.jpg" alt="Set 4 mosaic stitched from hand-clicked points" loading="lazy"><figcaption>Set 4 · street with autumn trees · manual (Part A)</figcaption></figure>
+          <figure><img src="./media/partB/set4/mosaic_auto_twoband.jpg" alt="Set 4 mosaic stitched automatically" loading="lazy"><figcaption>Set 4 · street with autumn trees · automatic</figcaption></figure>
+        </div>
+        <div class="story-copy wide-copy">
+          <p>Set 3 is the one place where the two differ visibly, because they treat the two depth layers differently. RANSAC fits the ground, so the crosswalk is aligned, but the distant pole and palm get a faint halo. My clicked points cover both layers, so the manual H spreads the error and keeps the pole and palm cleaner. The faint dark disc on the crosswalk is the car that drove through between the two shots; it appears in both, because no homography can fix a moving object.</p>
+        </div>
+        <div class="figure-grid two">
+          <figure><img src="./media/partB/set3/compare_far_manual.jpg" alt="Distant houses, pole and palm in the manual mosaic" loading="lazy"><figcaption>Set 3 · far · manual</figcaption></figure>
+          <figure><img src="./media/partB/set3/compare_far_auto.jpg" alt="Distant houses, pole and palm in the automatic mosaic, with a faint halo on the pole and palm" loading="lazy"><figcaption>Set 3 · far · automatic: faint halo on the pole and palm</figcaption></figure>
+          <figure><img src="./media/partB/set3/compare_near_manual.jpg" alt="Crosswalk near the camera in the manual mosaic" loading="lazy"><figcaption>Set 3 · near · manual</figcaption></figure>
+          <figure><img src="./media/partB/set3/compare_near_auto.jpg" alt="Crosswalk near the camera in the automatic mosaic" loading="lazy"><figcaption>Set 3 · near · automatic</figcaption></figure>
         </div>
       </article>
     </section>

@@ -243,3 +243,7 @@ footer a { color:var(--blue); font-family:"JetBrains Mono",monospace; font-weigh
 @media print { .code.system { font-size:.5rem; } }
 .story-copy p.table-note { color:var(--muted); font:500 .72rem/1.5 "JetBrains Mono",monospace; }
 .figure-grid.detail { max-width:820px; margin-inline:auto; }
+
+/* ---- Project 4 Part B additions ---- */
+.detail-plot { max-width:820px; margin-inline:auto; }
+.brand { white-space:nowrap; }
